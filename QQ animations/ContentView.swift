@@ -290,7 +290,7 @@ struct ContentView: View {
                             .frame(height: cardHeight)
                             .cornerRadius(10)
                             .padding(.horizontal)
-                            .offset(x: cardOffset, y: cardVerticalOffset)
+                            .offset(x: cardOffset, y: 0)
                             .opacity(cardOpacity)
                             .gesture(
                                 DragGesture()
@@ -303,8 +303,9 @@ struct ContentView: View {
                                             
                                             // Determine if this is primarily a vertical or horizontal swipe
                                             if abs(verticalDistance) > abs(horizontalDistance) {
-                                                // Vertical swipe - update vertical offset
-                                                cardVerticalOffset = verticalDistance
+                                                // Vertical swipe - don't move the card vertically anymore
+                                                // Instead just track the distance for symbol animation
+                                                cardVerticalOffset = 0 // Keep card in place
                                                 
                                                 // If we were showing horizontal symbols, hide them when switching to vertical
                                                 if isShowingSkipSymbol || isShowingCompleteSymbol {
@@ -315,7 +316,7 @@ struct ContentView: View {
                                                     cardOffset = 0
                                                 }
                                                 
-                                                // Handle up vs down swipe
+                                                // Handle up vs down swipe for symbols
                                                 if verticalDistance < 0 {
                                                     // Swiping up - show favorite symbol
                                                     isShowingFavoriteSymbol = true
@@ -431,7 +432,7 @@ struct ContentView: View {
                             .font(.system(size: 24, weight: .bold))
                             .multilineTextAlignment(.center)
                             .padding()
-                            .offset(x: cardOffset, y: cardVerticalOffset)
+                            .offset(x: cardOffset, y: 0)
                             .opacity(cardOpacity)
                         
                         // Skip symbol (circle with slash)
