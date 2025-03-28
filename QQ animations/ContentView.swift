@@ -4,6 +4,7 @@
 //
 //  Created by Rhett Wilhoit on 3/28/25.
 //
+// Note: SF Symbols have been replaced with custom PDF symbols from the Assets.xcassets/PDF Symbols folder
 
 import SwiftUI
 import UIKit
@@ -13,6 +14,66 @@ extension UIApplication {
     static var safeAreaInsets: UIEdgeInsets {
         let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
         return scene?.windows.first?.safeAreaInsets ?? .zero
+    }
+}
+
+// Color extension for app colors
+extension Color {
+    // Main UI colors
+    static let topHandle = Color(red: 0.0, green: 0.4, blue: 0.8) // Deeper blue
+    static let topOverlay = Color(red: 0.1, green: 0.5, blue: 0.9) // Lighter blue
+    static let bottomHandle = Color(red: 0.5, green: 0.0, blue: 0.7) // Deep purple
+    static let bottomOverlay = Color(red: 0.6, green: 0.1, blue: 0.8) // Lighter purple
+    
+    // Action symbols colors
+    static let skipSymbol = Color(red: 0.6, green: 0.6, blue: 0.6) // Light grey
+    static let completeSymbol = Color(red: 0.2, green: 0.6, blue: 0.2) // Green
+    static let favoriteSymbol = Color(red: 0.8, green: 0.7, blue: 0.0) // Gold
+    static let hiddenSymbol = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
+    
+    // Status colors
+    static let favoriteHandle = Color(red: 0.8, green: 0.7, blue: 0.0) // Gold
+    static let favoriteOverlay = Color(red: 0.9, green: 0.8, blue: 0.2) // Light gold
+    static let hiddenHandle = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
+    static let hiddenOverlay = Color(red: 0.8, green: 0.1, blue: 0.1) // Light red
+}
+
+// Animation constants for consistent timing
+extension Animation {
+    static let quickTransition = Animation.easeInOut(duration: 0.3)
+    static let mediumTransition = Animation.easeInOut(duration: 0.4)
+    static let longTransition = Animation.easeInOut(duration: 0.9)
+}
+
+// App timing constants
+enum AppTiming {
+    static let quick: Double = 0.3
+    static let medium: Double = 0.4
+    static let long: Double = 0.9
+    static let shortDelay: Double = 0.1
+    static let mediumDelay: Double = 0.3
+}
+
+// Reusable action symbol component
+struct ActionSymbol: View {
+    let symbolName: String
+    let color: Color
+    let size: CGFloat
+    let scale: CGFloat
+    let opacity: Double
+    let xOffset: CGFloat
+    let yOffset: CGFloat
+    
+    var body: some View {
+        Image(symbolName)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .foregroundColor(color)
+            .frame(width: size, height: size)
+            .scaleEffect(scale)
+            .opacity(opacity)
+            .offset(x: xOffset, y: yOffset)
+            .allowsHitTesting(false) // Prevent symbol from blocking card gesture
     }
 }
 
@@ -42,7 +103,6 @@ struct ContentView: View {
     @State private var isCardSwiped: Bool = false
     
     // States for vertical card swipe
-    @State private var cardVerticalOffset: CGFloat = 0
     @State private var isFavorite: Bool = false
     @State private var isHidden: Bool = false
     @State private var isShowingFavoriteSymbol: Bool = false
@@ -63,24 +123,8 @@ struct ContentView: View {
     // Constants for swipe thresholds
     let horizontalSwipeThreshold: CGFloat = 100
     let verticalSwipeThreshold: CGFloat = 100
-    let symbolSize: CGFloat = 40
+    let symbolSize: CGFloat = 60
     let overlayTriggerThresholdFraction: CGFloat = 8 // 1/8 of full distance triggers overlay state change
-    
-    // Defined colors for better consistency
-    let topHandleColor = Color(red: 0.0, green: 0.4, blue: 0.8) // Deeper blue
-    let topOverlayColor = Color(red: 0.1, green: 0.5, blue: 0.9) // Lighter blue
-    let bottomHandleColor = Color(red: 0.5, green: 0.0, blue: 0.7) // Deep purple
-    let bottomOverlayColor = Color(red: 0.6, green: 0.1, blue: 0.8) // Lighter purple
-    let skipSymbolColor = Color(red: 0.6, green: 0.2, blue: 0.2) // Red
-    let completeSymbolColor = Color(red: 0.2, green: 0.6, blue: 0.2) // Green
-    let favoriteSymbolColor = Color(red: 0.8, green: 0.7, blue: 0.0) // Gold
-    let hiddenSymbolColor = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
-    
-    // Colors for when favorites or hidden is active
-    let favoriteHandleColor = Color(red: 0.8, green: 0.7, blue: 0.0) // Gold
-    let favoriteOverlayColor = Color(red: 0.9, green: 0.8, blue: 0.2) // Light gold
-    let hiddenHandleColor = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
-    let hiddenOverlayColor = Color(red: 0.8, green: 0.1, blue: 0.1) // Light red
     
     // Get the safe area insets directly from UIKit
     var safeAreaTop: CGFloat {
@@ -91,9 +135,28 @@ struct ContentView: View {
         UIApplication.safeAreaInsets.bottom
     }
     
+    // Get handle color based on current state
+    func handleColor(isTop: Bool) -> Color {
+        if isHidden {
+            return .hiddenHandle
+        } else if isFavorite {
+            return .favoriteHandle
+        } else {
+            return isTop ? .topHandle : .bottomHandle
+        }
+    }
+    
+    // Helper function to calculate swipe progress effects
+    func calculateSwipeProgress(distance: CGFloat, threshold: CGFloat) -> (opacity: Double, scale: CGFloat) {
+        let progress = min(1.0, abs(distance) / threshold)
+        let opacity = min(1.0, Double(progress) * 0.8)
+        let scale = 0.6 + min(1.4, progress * 1.0)
+        return (opacity, scale)
+    }
+    
     // Reset the card horizontal state but only when returning from a partial swipe
     func resetCardState() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.quickTransition) {
             // Return card to center
             cardOffset = 0
             
@@ -116,7 +179,7 @@ struct ContentView: View {
             cardOpacity = 1.0
             
             // Reset the flags after short delay to prevent flicker
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.shortDelay) {
                 isShowingSkipSymbol = false
                 isShowingCompleteSymbol = false
                 isCardSwiped = false
@@ -126,8 +189,7 @@ struct ContentView: View {
     
     // Reset vertical swipe state
     func resetVerticalCardState() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            cardVerticalOffset = 0
+        withAnimation(.quickTransition) {
             verticalSymbolOpacity = 0
             verticalSymbolScale = 0.6
             
@@ -142,7 +204,7 @@ struct ContentView: View {
             }
             
             // Reset the flags after short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.shortDelay) {
                 isShowingFavoriteSymbol = false
                 isShowingHiddenSymbol = false
             }
@@ -151,12 +213,11 @@ struct ContentView: View {
     
     // Toggle favorite state
     func toggleFavorite() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.quickTransition) {
             // Move symbol to center and scale up
             verticalSymbolOffset = 0
             verticalSymbolOpacity = 1.0
             verticalSymbolScale = 3.0
-            cardVerticalOffset = 0 // Reset card position
             
             // Toggle the favorite state and make sure hidden is off
             if !isFavorite {
@@ -168,12 +229,12 @@ struct ContentView: View {
         }
         
         // After a delay, fade out the symbol
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeInOut(duration: 0.4)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long) {
+            withAnimation(.mediumTransition) {
                 verticalSymbolOpacity = 0
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.mediumDelay) {
                 isShowingFavoriteSymbol = false
             }
         }
@@ -181,12 +242,11 @@ struct ContentView: View {
     
     // Toggle hidden state
     func toggleHidden() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.quickTransition) {
             // Move symbol to center and scale up
             verticalSymbolOffset = 0
             verticalSymbolOpacity = 1.0
             verticalSymbolScale = 3.0
-            cardVerticalOffset = 0 // Reset card position
             
             // Toggle the hidden state and make sure favorite is off
             if !isHidden {
@@ -198,12 +258,12 @@ struct ContentView: View {
         }
         
         // After a delay, fade out the symbol
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeInOut(duration: 0.4)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long) {
+            withAnimation(.mediumTransition) {
                 verticalSymbolOpacity = 0
             }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.mediumDelay) {
                 isShowingHiddenSymbol = false
             }
         }
@@ -220,7 +280,7 @@ struct ContentView: View {
         // Prepare the next card before animation
         prepareNewCard()
         
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.quickTransition) {
             // Move card completely off screen
             cardOffset = direction * UIScreen.main.bounds.width * 1.5
             cardOpacity = 0
@@ -233,13 +293,13 @@ struct ContentView: View {
         }
         
         // After a delay, fade out symbol and prepare for new card
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeInOut(duration: 0.3)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long) {
+            withAnimation(.quickTransition) {
                 symbolOpacity = 0
             }
             
             // After symbol fades out, set up the new card
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.mediumDelay) {
                 // Update the main card text to the new card's text
                 cardText = newCardText
                 
@@ -250,11 +310,60 @@ struct ContentView: View {
                 isCardSwiped = false
                 
                 // Now fade in the main card with the new content
-                withAnimation(.easeInOut(duration: 0.4)) {
+                withAnimation(.mediumTransition) {
                     cardOpacity = 1.0
                 }
             }
         }
+    }
+    
+    // Card container symbols
+    var skipSymbol: some View {
+        ActionSymbol(
+            symbolName: "skip symbol",
+            color: .skipSymbol,
+            size: symbolSize,
+            scale: symbolScale,
+            opacity: isShowingSkipSymbol ? symbolOpacity : 0,
+            xOffset: symbolOffset,
+            yOffset: 0
+        )
+    }
+    
+    var completeSymbol: some View {
+        ActionSymbol(
+            symbolName: "completed symbol",
+            color: .completeSymbol,
+            size: symbolSize,
+            scale: symbolScale,
+            opacity: isShowingCompleteSymbol ? symbolOpacity : 0,
+            xOffset: symbolOffset,
+            yOffset: 0
+        )
+    }
+    
+    var favoriteSymbol: some View {
+        ActionSymbol(
+            symbolName: "favorite symbol",
+            color: .favoriteSymbol,
+            size: symbolSize,
+            scale: verticalSymbolScale,
+            opacity: isShowingFavoriteSymbol ? verticalSymbolOpacity : 0,
+            xOffset: 0,
+            yOffset: verticalSymbolOffset
+        )
+    }
+    
+    var hiddenSymbol: some View {
+        ActionSymbol(
+            symbolName: "hidden symbol",
+            color: .hiddenSymbol,
+            size: symbolSize,
+            scale: verticalSymbolScale,
+            opacity: isShowingHiddenSymbol ? verticalSymbolOpacity : 0,
+            xOffset: 0,
+            yOffset: verticalSymbolOffset
+        )
     }
     
     var body: some View {
@@ -303,10 +412,7 @@ struct ContentView: View {
                                             
                                             // Determine if this is primarily a vertical or horizontal swipe
                                             if abs(verticalDistance) > abs(horizontalDistance) {
-                                                // Vertical swipe - don't move the card vertically anymore
-                                                // Instead just track the distance for symbol animation
-                                                cardVerticalOffset = 0 // Keep card in place
-                                                
+                                                // Vertical swipe - we don't move the card vertically anymore
                                                 // If we were showing horizontal symbols, hide them when switching to vertical
                                                 if isShowingSkipSymbol || isShowingCompleteSymbol {
                                                     symbolOpacity = 0
@@ -327,9 +433,9 @@ struct ContentView: View {
                                                     verticalSymbolOffset = bottomHandleEdge + verticalDistance/2
                                                     
                                                     // Calculate progress
-                                                    let swipeProgress = min(1.0, abs(verticalDistance) / verticalSwipeThreshold)
-                                                    verticalSymbolOpacity = min(1.0, Double(swipeProgress) * 0.8)
-                                                    verticalSymbolScale = 0.6 + min(1.4, swipeProgress * 1.0)
+                                                    let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
+                                                    verticalSymbolOpacity = progressValues.opacity
+                                                    verticalSymbolScale = progressValues.scale
                                                     
                                                 } else if verticalDistance > 0 {
                                                     // Swiping down - show hidden symbol
@@ -341,9 +447,9 @@ struct ContentView: View {
                                                     verticalSymbolOffset = -bottomHandleEdge + verticalDistance/2
                                                     
                                                     // Calculate progress
-                                                    let swipeProgress = min(1.0, abs(verticalDistance) / verticalSwipeThreshold)
-                                                    verticalSymbolOpacity = min(1.0, Double(swipeProgress) * 0.8)
-                                                    verticalSymbolScale = 0.6 + min(1.4, swipeProgress * 1.0)
+                                                    let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
+                                                    verticalSymbolOpacity = progressValues.opacity
+                                                    verticalSymbolScale = progressValues.scale
                                                 }
                                             } else {
                                                 // Horizontal swipe - update horizontal offset
@@ -354,8 +460,6 @@ struct ContentView: View {
                                                     verticalSymbolOpacity = 0
                                                     isShowingFavoriteSymbol = false
                                                     isShowingHiddenSymbol = false
-                                                    // Reset vertical offset too
-                                                    cardVerticalOffset = 0
                                                 }
                                                 
                                                 // Determine which symbol to show based on swipe direction
@@ -367,12 +471,10 @@ struct ContentView: View {
                                                     // Update symbol position and opacity
                                                     symbolOffset = -geometry.size.width/2 + horizontalDistance/2
                                                     
-                                                    // Calculate progress toward threshold
-                                                    let swipeProgress = abs(horizontalDistance) / horizontalSwipeThreshold
-                                                    
-                                                    // Gradually increase opacity and scale
-                                                    symbolOpacity = min(1.0, Double(swipeProgress) * 0.8)
-                                                    symbolScale = 0.6 + min(1.4, swipeProgress * 1.0)
+                                                    // Calculate progress
+                                                    let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
+                                                    symbolOpacity = progressValues.opacity
+                                                    symbolScale = progressValues.scale
                                                 } else if horizontalDistance < 0 {
                                                     // Swiping left - show skip symbol
                                                     isShowingSkipSymbol = true
@@ -381,12 +483,10 @@ struct ContentView: View {
                                                     // Update symbol position and opacity
                                                     symbolOffset = geometry.size.width/2 + horizontalDistance/2
                                                     
-                                                    // Calculate progress toward threshold
-                                                    let swipeProgress = abs(horizontalDistance) / horizontalSwipeThreshold
-                                                    
-                                                    // Gradually increase opacity and scale
-                                                    symbolOpacity = min(1.0, Double(swipeProgress) * 0.8)
-                                                    symbolScale = 0.6 + min(1.4, swipeProgress * 1.0)
+                                                    // Calculate progress
+                                                    let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
+                                                    symbolOpacity = progressValues.opacity
+                                                    symbolScale = progressValues.scale
                                                 }
                                             }
                                         }
@@ -435,61 +535,11 @@ struct ContentView: View {
                             .offset(x: cardOffset, y: 0)
                             .opacity(cardOpacity)
                         
-                        // Skip symbol (circle with slash)
-                        ZStack {
-                            Circle()
-                                .fill(skipSymbolColor)
-                                .frame(width: symbolSize, height: symbolSize)
-                            Image(systemName: "slash.circle")
-                                .foregroundColor(.white)
-                                .font(.system(size: symbolSize * 0.6))
-                        }
-                        .scaleEffect(symbolScale)
-                        .opacity(isShowingSkipSymbol ? symbolOpacity : 0)
-                        .offset(x: symbolOffset)
-                        .allowsHitTesting(false) // Prevent symbol from blocking card gesture
-                        
-                        // Complete symbol (checkmark)
-                        ZStack {
-                            Circle()
-                                .fill(completeSymbolColor)
-                                .frame(width: symbolSize, height: symbolSize)
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.white)
-                                .font(.system(size: symbolSize * 0.6))
-                        }
-                        .scaleEffect(symbolScale)
-                        .opacity(isShowingCompleteSymbol ? symbolOpacity : 0)
-                        .offset(x: symbolOffset)
-                        .allowsHitTesting(false) // Prevent symbol from blocking card gesture
-                        
-                        // Favorite symbol (star)
-                        ZStack {
-                            Circle()
-                                .fill(favoriteSymbolColor)
-                                .frame(width: symbolSize, height: symbolSize)
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.white)
-                                .font(.system(size: symbolSize * 0.6))
-                        }
-                        .scaleEffect(verticalSymbolScale)
-                        .opacity(isShowingFavoriteSymbol ? verticalSymbolOpacity : 0)
-                        .offset(y: verticalSymbolOffset)
-                        .allowsHitTesting(false)
-                        
-                        // Hidden symbol (eye slash)
-                        ZStack {
-                            Circle()
-                                .fill(hiddenSymbolColor)
-                                .frame(width: symbolSize, height: symbolSize)
-                            Image(systemName: "eye.slash.fill")
-                                .foregroundColor(.white)
-                                .font(.system(size: symbolSize * 0.6))
-                        }
-                        .scaleEffect(verticalSymbolScale)
-                        .opacity(isShowingHiddenSymbol ? verticalSymbolOpacity : 0)
-                        .offset(y: verticalSymbolOffset)
-                        .allowsHitTesting(false)
+                        // Action symbols
+                        skipSymbol
+                        completeSymbol
+                        favoriteSymbol
+                        hiddenSymbol
                     }
                     
                     Spacer()
@@ -516,12 +566,12 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // Top overlay body
                     Rectangle()
-                        .fill(topOverlayColor)
+                        .fill(Color.topOverlay)
                         .frame(height: geometry.size.height - topBarHeight)
                     
                     // Top overlay handle - draggable
                     Rectangle()
-                        .fill(isHidden ? hiddenHandleColor : (isFavorite ? favoriteHandleColor : topHandleColor))
+                        .fill(handleColor(isTop: true))
                         .frame(height: topBarHeight)
                         .contentShape(Rectangle()) // Ensure entire handle is tappable
                         .gesture(
@@ -556,7 +606,7 @@ struct ContentView: View {
                                     // Determine threshold for triggering state change
                                     let threshold = fullSlideDistance / overlayTriggerThresholdFraction
                                     
-                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                    withAnimation(.quickTransition) {
                                         if abs(dragDistance) > threshold {
                                             // If we've moved more than the threshold, trigger state change
                                             if dragDistance > 0 {
@@ -582,7 +632,7 @@ struct ContentView: View {
                 }
                 .offset(y: -geometry.size.height + topBarHeight + safeAreaTop + topOverlayOffset)
                 .zIndex(topOverlayActive ? 2 : 0)
-                .animation(.easeInOut(duration: 0.3), value: topOverlayOffset)
+                .animation(.quickTransition, value: topOverlayOffset)
                 
                 // MARK: - Bottom Overlay
                 
@@ -590,7 +640,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // Bottom overlay handle - draggable
                     Rectangle()
-                        .fill(isHidden ? hiddenHandleColor : (isFavorite ? favoriteHandleColor : bottomHandleColor))
+                        .fill(handleColor(isTop: false))
                         .frame(height: bottomBarHeight)
                         .contentShape(Rectangle()) // Ensure entire handle is tappable
                         .gesture(
@@ -625,7 +675,7 @@ struct ContentView: View {
                                     // Determine threshold for triggering state change
                                     let threshold = fullSlideDistance / overlayTriggerThresholdFraction
                                     
-                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                    withAnimation(.quickTransition) {
                                         if abs(dragDistance) > threshold {
                                             // If we've moved more than the threshold, trigger state change
                                             if dragDistance > 0 {
@@ -651,12 +701,12 @@ struct ContentView: View {
                     
                     // Bottom overlay body
                     Rectangle()
-                        .fill(bottomOverlayColor)
+                        .fill(Color.bottomOverlay)
                         .frame(height: geometry.size.height - bottomBarHeight)
                 }
                 .offset(y: geometry.size.height - bottomBarHeight - safeAreaBottom - bottomOverlayOffset)
                 .zIndex(bottomOverlayActive ? 2 : 1)
-                .animation(.easeInOut(duration: 0.3), value: bottomOverlayOffset)
+                .animation(.quickTransition, value: bottomOverlayOffset)
             }
         }
         .ignoresSafeArea()
