@@ -36,6 +36,10 @@ extension Color {
     static let favoriteOverlay = Color(red: 0.9, green: 0.8, blue: 0.2) // Light gold
     static let hiddenHandle = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
     static let hiddenOverlay = Color(red: 0.8, green: 0.1, blue: 0.1) // Light red
+    
+    // Filagree colors
+    static let filagree = Color(red: 0.6, green: 0.6, blue: 0.6) // Light grey (same as skip symbol)
+    static let appBackground = Color(red: 0.12, green: 0.12, blue: 0.12) // Dark grey (almost black)
 }
 
 // Animation constants for consistent timing
@@ -54,6 +58,33 @@ enum AppTiming {
     static let mediumDelay: Double = 0.3
 }
 
+// Extension for high-quality image rendering
+extension Image {
+    func highQualityImageRendering() -> some View {
+        self
+            .interpolation(.high)
+            .antialiased(true)
+    }
+}
+
+// Reusable filagree component
+struct FilagreeView: View {
+    let color: Color
+    let isFlipped: Bool
+    
+    var body: some View {
+        Image("filagree")
+            .resizable()
+            .highQualityImageRendering()
+            .aspectRatio(contentMode: .fit)
+            .foregroundColor(color)
+            .rotation3DEffect(
+                isFlipped ? .degrees(180) : .degrees(0),
+                axis: (x: 1.0, y: 0.0, z: 0.0)
+            )
+    }
+}
+
 // Reusable action symbol component
 struct ActionSymbol: View {
     let symbolName: String
@@ -65,12 +96,16 @@ struct ActionSymbol: View {
     let yOffset: CGFloat
     
     var body: some View {
+        // Use a larger base size and scale down for better rendering quality
+        let scaledSize = size * max(3.0, scale) // Use a minimum of 3x base size
+        
         Image(symbolName)
             .resizable()
+            .interpolation(.high)
             .aspectRatio(contentMode: .fit)
             .foregroundColor(color)
-            .frame(width: size, height: size)
-            .scaleEffect(scale)
+            .frame(width: scaledSize, height: scaledSize)
+            .scaleEffect(scale / max(3.0, scale)) // Adjust scale factor
             .opacity(opacity)
             .offset(x: xOffset, y: yOffset)
             .allowsHitTesting(false) // Prevent symbol from blocking card gesture
@@ -370,7 +405,7 @@ struct ContentView: View {
         GeometryReader { geometry in
             ZStack {
                 // Main background
-                Color.white.ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
                 
                 // Main content stack
                 VStack(spacing: 0) {
@@ -395,7 +430,7 @@ struct ContentView: View {
                     ZStack {
                         // Current card
                         Rectangle()
-                            .fill(Color.gray.opacity(0.2))
+                            .fill(Color.white.opacity(0.9))
                             .frame(height: cardHeight)
                             .cornerRadius(10)
                             .padding(.horizontal)
@@ -530,6 +565,7 @@ struct ContentView: View {
                         // Card content
                         Text(cardText)
                             .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.black)
                             .multilineTextAlignment(.center)
                             .padding()
                             .offset(x: cardOffset, y: 0)
@@ -570,65 +606,72 @@ struct ContentView: View {
                         .frame(height: geometry.size.height - topBarHeight)
                     
                     // Top overlay handle - draggable
-                    Rectangle()
-                        .fill(handleColor(isTop: true))
-                        .frame(height: topBarHeight)
-                        .contentShape(Rectangle()) // Ensure entire handle is tappable
-                        .gesture(
-                            DragGesture(coordinateSpace: .global)
-                                .onChanged { value in
-                                    // Activate this overlay while dragging
-                                    topOverlayActive = true
-                                    
-                                    // On first touch, record the initial touch location and handle position
-                                    if initialTopDragLocation == 0 {
-                                        initialTopDragLocation = value.location.y
-                                        initialTopHandlePosition = topOverlayOffset
-                                    }
-                                    
-                                    // Calculate new position using direct finger tracking in global coordinates
-                                    let dragDistance = value.location.y - initialTopDragLocation
-                                    let newOffset = initialTopHandlePosition + dragDistance
-                                    
-                                    // Calculate full slide distance to position precisely at bottom bar
-                                    let maxOffset = geometry.size.height - (safeAreaTop + topBarHeight) - safeAreaBottom
-                                    
-                                    // Constrain within bounds - direct 1:1 movement with finger
-                                    topOverlayOffset = min(maxOffset, max(0, newOffset))
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.appBackground)
+                            .frame(height: topBarHeight)
+                        
+                        // Add filagree to handle
+                        FilagreeView(color: isFavorite ? .favoriteHandle : (isHidden ? .hiddenHandle : .filagree), isFlipped: false)
+                            .frame(height: topBarHeight * 0.8)
+                            .padding(.horizontal)
+                    }
+                    .contentShape(Rectangle()) // Ensure entire handle is tappable
+                    .gesture(
+                        DragGesture(coordinateSpace: .global)
+                            .onChanged { value in
+                                // Activate this overlay while dragging
+                                topOverlayActive = true
+                                
+                                // On first touch, record the initial touch location and handle position
+                                if initialTopDragLocation == 0 {
+                                    initialTopDragLocation = value.location.y
+                                    initialTopHandlePosition = topOverlayOffset
                                 }
-                                .onEnded { value in
-                                    // Calculate full slide distance
-                                    let fullSlideDistance = geometry.size.height - (safeAreaTop + topBarHeight) - safeAreaBottom
-                                    
-                                    // Calculate how far we've moved from where we started the drag
-                                    let dragDistance = topOverlayOffset - initialTopHandlePosition
-                                    
-                                    // Determine threshold for triggering state change
-                                    let threshold = fullSlideDistance / overlayTriggerThresholdFraction
-                                    
-                                    withAnimation(.quickTransition) {
-                                        if abs(dragDistance) > threshold {
-                                            // If we've moved more than the threshold, trigger state change
-                                            if dragDistance > 0 {
-                                                // Moved downward - deploy fully
-                                                topOverlayOffset = fullSlideDistance
-                                                topOverlayActive = true
-                                            } else {
-                                                // Moved upward - retract fully
-                                                topOverlayOffset = 0
-                                                topOverlayActive = false
-                                            }
+                                
+                                // Calculate new position using direct finger tracking in global coordinates
+                                let dragDistance = value.location.y - initialTopDragLocation
+                                let newOffset = initialTopHandlePosition + dragDistance
+                                
+                                // Calculate full slide distance to position precisely at bottom bar
+                                let maxOffset = geometry.size.height - (safeAreaTop + topBarHeight) - safeAreaBottom
+                                
+                                // Constrain within bounds - direct 1:1 movement with finger
+                                topOverlayOffset = min(maxOffset, max(0, newOffset))
+                            }
+                            .onEnded { value in
+                                // Calculate full slide distance
+                                let fullSlideDistance = geometry.size.height - (safeAreaTop + topBarHeight) - safeAreaBottom
+                                
+                                // Calculate how far we've moved from where we started the drag
+                                let dragDistance = topOverlayOffset - initialTopHandlePosition
+                                
+                                // Determine threshold for triggering state change
+                                let threshold = fullSlideDistance / overlayTriggerThresholdFraction
+                                
+                                withAnimation(.quickTransition) {
+                                    if abs(dragDistance) > threshold {
+                                        // If we've moved more than the threshold, trigger state change
+                                        if dragDistance > 0 {
+                                            // Moved downward - deploy fully
+                                            topOverlayOffset = fullSlideDistance
+                                            topOverlayActive = true
                                         } else {
-                                            // If we haven't moved far enough, go back to where we started
-                                            topOverlayOffset = initialTopHandlePosition
-                                            topOverlayActive = initialTopHandlePosition > 0
+                                            // Moved upward - retract fully
+                                            topOverlayOffset = 0
+                                            topOverlayActive = false
                                         }
+                                    } else {
+                                        // If we haven't moved far enough, go back to where we started
+                                        topOverlayOffset = initialTopHandlePosition
+                                        topOverlayActive = initialTopHandlePosition > 0
                                     }
-                                    
-                                    // Reset the tracking variables for next drag
-                                    initialTopDragLocation = 0
                                 }
-                        )
+                                
+                                // Reset the tracking variables for next drag
+                                initialTopDragLocation = 0
+                            }
+                    )
                 }
                 .offset(y: -geometry.size.height + topBarHeight + safeAreaTop + topOverlayOffset)
                 .zIndex(topOverlayActive ? 2 : 0)
@@ -639,65 +682,72 @@ struct ContentView: View {
                 // Bottom Overlay with handle and body
                 VStack(spacing: 0) {
                     // Bottom overlay handle - draggable
-                    Rectangle()
-                        .fill(handleColor(isTop: false))
-                        .frame(height: bottomBarHeight)
-                        .contentShape(Rectangle()) // Ensure entire handle is tappable
-                        .gesture(
-                            DragGesture(coordinateSpace: .global)
-                                .onChanged { value in
-                                    // Activate this overlay while dragging
-                                    bottomOverlayActive = true
-                                    
-                                    // On first touch, record the initial touch location and handle position
-                                    if initialBottomDragLocation == 0 {
-                                        initialBottomDragLocation = value.location.y
-                                        initialBottomHandlePosition = bottomOverlayOffset
-                                    }
-                                    
-                                    // Calculate new position using direct finger tracking in global coordinates
-                                    let dragDistance = initialBottomDragLocation - value.location.y
-                                    let newOffset = initialBottomHandlePosition + dragDistance
-                                    
-                                    // Calculate full slide distance to position precisely at top bar
-                                    let maxOffset = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
-                                    
-                                    // Constrain within bounds - direct 1:1 movement with finger
-                                    bottomOverlayOffset = min(maxOffset, max(0, newOffset))
+                    ZStack {
+                        Rectangle()
+                            .fill(Color.appBackground)
+                            .frame(height: bottomBarHeight)
+                        
+                        // Add filagree to handle, flipped vertically
+                        FilagreeView(color: isFavorite ? .favoriteHandle : (isHidden ? .hiddenHandle : .filagree), isFlipped: true)
+                            .frame(height: bottomBarHeight * 0.8)
+                            .padding(.horizontal)
+                    }
+                    .contentShape(Rectangle()) // Ensure entire handle is tappable
+                    .gesture(
+                        DragGesture(coordinateSpace: .global)
+                            .onChanged { value in
+                                // Activate this overlay while dragging
+                                bottomOverlayActive = true
+                                
+                                // On first touch, record the initial touch location and handle position
+                                if initialBottomDragLocation == 0 {
+                                    initialBottomDragLocation = value.location.y
+                                    initialBottomHandlePosition = bottomOverlayOffset
                                 }
-                                .onEnded { value in
-                                    // Calculate full slide distance
-                                    let fullSlideDistance = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
-                                    
-                                    // Calculate how far we've moved from where we started the drag
-                                    let dragDistance = bottomOverlayOffset - initialBottomHandlePosition
-                                    
-                                    // Determine threshold for triggering state change
-                                    let threshold = fullSlideDistance / overlayTriggerThresholdFraction
-                                    
-                                    withAnimation(.quickTransition) {
-                                        if abs(dragDistance) > threshold {
-                                            // If we've moved more than the threshold, trigger state change
-                                            if dragDistance > 0 {
-                                                // Moved upward - deploy fully
-                                                bottomOverlayOffset = fullSlideDistance
-                                                bottomOverlayActive = true
-                                            } else {
-                                                // Moved downward - retract fully
-                                                bottomOverlayOffset = 0
-                                                bottomOverlayActive = false
-                                            }
+                                
+                                // Calculate new position using direct finger tracking in global coordinates
+                                let dragDistance = initialBottomDragLocation - value.location.y
+                                let newOffset = initialBottomHandlePosition + dragDistance
+                                
+                                // Calculate full slide distance to position precisely at top bar
+                                let maxOffset = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
+                                
+                                // Constrain within bounds - direct 1:1 movement with finger
+                                bottomOverlayOffset = min(maxOffset, max(0, newOffset))
+                            }
+                            .onEnded { value in
+                                // Calculate full slide distance
+                                let fullSlideDistance = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
+                                
+                                // Calculate how far we've moved from where we started the drag
+                                let dragDistance = bottomOverlayOffset - initialBottomHandlePosition
+                                
+                                // Determine threshold for triggering state change
+                                let threshold = fullSlideDistance / overlayTriggerThresholdFraction
+                                
+                                withAnimation(.quickTransition) {
+                                    if abs(dragDistance) > threshold {
+                                        // If we've moved more than the threshold, trigger state change
+                                        if dragDistance > 0 {
+                                            // Moved upward - deploy fully
+                                            bottomOverlayOffset = fullSlideDistance
+                                            bottomOverlayActive = true
                                         } else {
-                                            // If we haven't moved far enough, go back to where we started
-                                            bottomOverlayOffset = initialBottomHandlePosition
-                                            bottomOverlayActive = initialBottomHandlePosition > 0
+                                            // Moved downward - retract fully
+                                            bottomOverlayOffset = 0
+                                            bottomOverlayActive = false
                                         }
+                                    } else {
+                                        // If we haven't moved far enough, go back to where we started
+                                        bottomOverlayOffset = initialBottomHandlePosition
+                                        bottomOverlayActive = initialBottomHandlePosition > 0
                                     }
-                                    
-                                    // Reset the tracking variables for next drag
-                                    initialBottomDragLocation = 0
                                 }
-                        )
+                                
+                                // Reset the tracking variables for next drag
+                                initialBottomDragLocation = 0
+                            }
+                    )
                     
                     // Bottom overlay body
                     Rectangle()
@@ -713,6 +763,18 @@ struct ContentView: View {
     }
 }
 
-#Preview {
+// More explicit preview provider for better compatibility
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .previewDevice(PreviewDevice(rawValue: "iPhone 15"))
+            .previewDisplayName("iPhone 15")
+    }
+}
+
+// Use the correct #Preview macro syntax
+#if DEBUG
+#Preview("QQ animations - iPhone 15") {
     ContentView()
 }
+#endif
