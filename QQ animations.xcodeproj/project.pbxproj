@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		403A1E1A2D98498A00936FF3 /* master_questions.db in Resources */ = {isa = PBXBuildFile; fileRef = 403A1E192D98498A00936FF3 /* master_questions.db */; };
+		403A1E1C2D9849BB00936FF3 /* user_data.db in Resources */ = {isa = PBXBuildFile; fileRef = 403A1E1B2D9849BB00936FF3 /* user_data.db */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		40C6518D2D96CEF8007E6872 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +29,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		403A1E192D98498A00936FF3 /* master_questions.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = master_questions.db; sourceTree = "<group>"; };
+		403A1E1B2D9849BB00936FF3 /* user_data.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = user_data.db; sourceTree = "<group>"; };
 		40C6517C2D96CEF6007E6872 /* QQ animations.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "QQ animations.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		40C6518C2D96CEF8007E6872 /* QQ animationsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "QQ animationsTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		40C651962D96CEF8007E6872 /* QQ animationsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "QQ animationsUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,9 +79,27 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		403A1E172D9848E500936FF3 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				403A1E182D98492300936FF3 /* Databases */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		403A1E182D98492300936FF3 /* Databases */ = {
+			isa = PBXGroup;
+			children = (
+				403A1E1B2D9849BB00936FF3 /* user_data.db */,
+				403A1E192D98498A00936FF3 /* master_questions.db */,
+			);
+			path = Databases;
+			sourceTree = "<group>";
+		};
 		40C651732D96CEF6007E6872 = {
 			isa = PBXGroup;
 			children = (
+				403A1E172D9848E500936FF3 /* Resources */,
 				40C6517E2D96CEF6007E6872 /* QQ animations */,
 				40C6518F2D96CEF8007E6872 /* QQ animationsTests */,
 				40C651992D96CEF8007E6872 /* QQ animationsUITests */,
@@ -212,6 +237,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				403A1E1C2D9849BB00936FF3 /* user_data.db in Resources */,
+				403A1E1A2D98498A00936FF3 /* master_questions.db in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
