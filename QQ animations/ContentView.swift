@@ -577,7 +577,7 @@ struct ContentView: View {
                             .opacity(cardOpacity)
                         
                         // Card content
-                        Text(viewModel.questionDisplayText)
+                        Text(viewModel.currentQuestion?.questionText ?? "No question available")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.center)
@@ -774,11 +774,11 @@ struct ContentView: View {
                 .animation(.quickTransition, value: bottomOverlayOffset)
             }
             // Watch for changes in the ViewModel
-            .onChange(of: viewModel.isFavorite) { newValue in
+            .onReceive(viewModel.$questionPreference.map { $0?.isFavorite ?? false }) { newValue in
                 // Update the ContentView state to match
                 isFavorite = newValue
             }
-            .onChange(of: viewModel.isHidden) { newValue in
+            .onReceive(viewModel.$questionPreference.map { $0?.isHidden ?? false }) { newValue in
                 // Update the ContentView state to match
                 isHidden = newValue
             }

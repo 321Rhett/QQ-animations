@@ -64,6 +64,11 @@ struct HomeView: View {
                         NavigationLink(destination: StoreDestinationView()) {
                             NavigationButtonContent(title: "Store", font: buttonFont)
                         }
+                        
+                        // Debug button to test session functionality
+                        NavigationLink(destination: SessionTestView()) {
+                            NavigationButtonContent(title: "Debug", font: buttonFont)
+                        }
                     }
                     .padding(.horizontal, 50)
                     

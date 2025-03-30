@@ -265,4 +265,158 @@ class DatabaseManager {
         // Return default preferences if none found
         return UserPreference(questionId: questionId)
     }
+    
+    // Function to ensure the sessions table exists in the user database
+    func initializeSessionsTable() -> Bool {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return false
+        }
+        
+        let createTableQuery = """
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                creation_date TEXT NOT NULL
+            );
+        """
+        
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, createTableQuery, -1, &statement, nil) != SQLITE_OK {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error preparing create table statement: \(error)")
+            return false
+        }
+        
+        if sqlite3_step(statement) != SQLITE_DONE {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error creating sessions table: \(error)")
+            sqlite3_finalize(statement)
+            return false
+        }
+        
+        sqlite3_finalize(statement)
+        print("Sessions table initialized successfully")
+        return true
+    }
+    
+    // Function to create a new session in the database
+    func createSession(name: String) -> Session? {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return nil
+        }
+        
+        // Make sure the sessions table exists
+        if !initializeSessionsTable() {
+            return nil
+        }
+        
+        let dateFormatter = ISO8601DateFormatter()
+        let currentDate = dateFormatter.string(from: Date())
+        
+        let insertQuery = "INSERT INTO sessions (name, creation_date) VALUES (?, ?);"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, insertQuery, -1, &statement, nil) != SQLITE_OK {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error preparing insert statement: \(error)")
+            return nil
+        }
+        
+        sqlite3_bind_text(statement, 1, name.cString(using: .utf8), -1, nil)
+        sqlite3_bind_text(statement, 2, currentDate.cString(using: .utf8), -1, nil)
+        
+        if sqlite3_step(statement) != SQLITE_DONE {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error inserting session: \(error)")
+            sqlite3_finalize(statement)
+            return nil
+        }
+        
+        // Get the ID of the last inserted row
+        let sessionId = Int(sqlite3_last_insert_rowid(db))
+        
+        sqlite3_finalize(statement)
+        
+        return Session(id: sessionId, name: name)
+    }
+    
+    // Function to get all sessions from the database
+    func getAllSessions() -> [Session] {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return []
+        }
+        
+        // Make sure the sessions table exists
+        if !initializeSessionsTable() {
+            return []
+        }
+        
+        var sessions: [Session] = []
+        let query = "SELECT session_id, name, creation_date FROM sessions ORDER BY creation_date DESC;"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error preparing query: \(error)")
+            return []
+        }
+        
+        let dateFormatter = ISO8601DateFormatter()
+        
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let id = sqlite3_column_int(statement, 0)
+            
+            guard let nameCString = sqlite3_column_text(statement, 1) else {
+                continue
+            }
+            let name = String(cString: nameCString)
+            
+            var creationDate = Date()
+            if let dateCString = sqlite3_column_text(statement, 2) {
+                let dateString = String(cString: dateCString)
+                if let date = dateFormatter.date(from: dateString) {
+                    creationDate = date
+                }
+            }
+            
+            let session = Session(id: Int(id), name: name, creationDate: creationDate)
+            sessions.append(session)
+        }
+        
+        sqlite3_finalize(statement)
+        return sessions
+    }
+    
+    // Function to delete a session by ID
+    func deleteSession(sessionId: Int) -> Bool {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return false
+        }
+        
+        let deleteQuery = "DELETE FROM sessions WHERE session_id = ?;"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, deleteQuery, -1, &statement, nil) != SQLITE_OK {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error preparing delete statement: \(error)")
+            return false
+        }
+        
+        sqlite3_bind_int(statement, 1, Int32(sessionId))
+        
+        if sqlite3_step(statement) != SQLITE_DONE {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("Error deleting session: \(error)")
+            sqlite3_finalize(statement)
+            return false
+        }
+        
+        sqlite3_finalize(statement)
+        return true
+    }
 } 

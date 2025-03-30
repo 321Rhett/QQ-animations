@@ -2,8 +2,12 @@ import SwiftUI
 import UIKit
 
 struct SessionsView: View {
-    // State to track if this is first time use (no existing sessions)
-    @State private var isFirstTimeUse = true
+    // ViewModel for database operations
+    @StateObject private var viewModel = SessionsViewModel()
+    
+    // State for creating a new session
+    @State private var showingNewSessionAlert = false
+    @State private var newSessionName = ""
     
     // Constants for sizing and positioning
     private let filagreeHeight: CGFloat = 50
@@ -54,7 +58,8 @@ struct SessionsView: View {
                     
                     // New Session button (golden)
                     Button(action: {
-                        // Action for creating a new session
+                        // Show alert to create a new session
+                        showingNewSessionAlert = true
                     }) {
                         Text("New Session")
                             .font(buttonFont)
@@ -69,19 +74,29 @@ struct SessionsView: View {
                     }
                     .padding(.horizontal, 50)
                     .padding(.bottom, 15)
+                    .alert("New Session", isPresented: $showingNewSessionAlert) {
+                        TextField("Session Name", text: $newSessionName)
+                        Button("Cancel", role: .cancel) {
+                            newSessionName = ""
+                        }
+                        Button("Create") {
+                            if !newSessionName.isEmpty {
+                                _ = viewModel.createSession(name: newSessionName)
+                                newSessionName = ""
+                            }
+                        }
+                    } message: {
+                        Text("Enter a name for the new session")
+                    }
                     
-                    // Existing session buttons (conditionally visible)
-                    if !isFirstTimeUse {
+                    // Existing session buttons
+                    if !viewModel.sessions.isEmpty {
                         ScrollView {
                             VStack(spacing: 20) {
-                                // This is where we would dynamically add session buttons
-                                // For now, we'll add placeholders to match the image
-                                
-                                // Placeholder session buttons
-                                SessionButton(name: "Amanda Black")
-                                SessionButton(name: "John Smith")
-                                SessionButton(name: "Mother")
-                                SessionButton(name: "House Party")
+                                // Display sessions from the database
+                                ForEach(viewModel.sessions) { session in
+                                    SessionButton(name: session.name)
+                                }
                             }
                             .padding(.horizontal, 50)
                         }
@@ -108,6 +123,10 @@ struct SessionsView: View {
         }
         .navigationBarTitle("", displayMode: .inline)
         .navigationBarBackButtonHidden(false)
+        .onAppear {
+            // Refresh sessions when view appears
+            viewModel.loadSessions()
+        }
     }
 }
 

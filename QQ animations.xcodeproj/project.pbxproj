@@ -9,11 +9,7 @@
 /* Begin PBXBuildFile section */
 		403A1E1A2D98498A00936FF3 /* master_questions.db in Resources */ = {isa = PBXBuildFile; fileRef = 403A1E192D98498A00936FF3 /* master_questions.db */; };
 		403A1E1C2D9849BB00936FF3 /* user_data.db in Resources */ = {isa = PBXBuildFile; fileRef = 403A1E1B2D9849BB00936FF3 /* user_data.db */; };
-		403A1E1F2D984F5300936FF3 /* Question.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403A1E1D2D984F5300936FF3 /* Question.swift */; };
-		403A1E212D98500200936FF3 /* UserPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403A1E202D98500200936FF3 /* UserPreference.swift */; };
-		403A1E242D98530700936FF3 /* DatabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403A1E222D98530700936FF3 /* DatabaseManager.swift */; };
 		403A1E272D9853AD00936FF3 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 403A1E262D9853AD00936FF3 /* libsqlite3.tbd */; };
-		403A1E2A2D98544900936FF3 /* QuestionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 403A1E282D98544900936FF3 /* QuestionViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -311,10 +307,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				403A1E2A2D98544900936FF3 /* QuestionViewModel.swift in Sources */,
-				403A1E1F2D984F5300936FF3 /* Question.swift in Sources */,
-				403A1E242D98530700936FF3 /* DatabaseManager.swift in Sources */,
-				403A1E212D98500200936FF3 /* UserPreference.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
