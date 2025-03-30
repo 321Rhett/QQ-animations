@@ -7,6 +7,9 @@ struct HomeView: View {
     private let topSpacing: CGFloat = 0
     private let bottomSpacing: CGFloat = 0
     
+    // Font constants
+    private let buttonFont = Font.system(size: 28, weight: .light, design: .monospaced)
+    
     // Get the safe area insets directly from UIKit
     private var safeAreaTop: CGFloat {
         UIApplication.safeAreaInsets.top
@@ -42,24 +45,24 @@ struct HomeView: View {
                     
                     // Navigation buttons
                     VStack(spacing: 25) {
-                        NavigationLink(destination: SessionsDestinationView()) {
-                            NavigationButtonContent(title: "Sessions")
+                        NavigationLink(destination: SessionsView()) {
+                            NavigationButtonContent(title: "Sessions", font: buttonFont)
                         }
                         
                         NavigationLink(destination: FavoritesDestinationView()) {
-                            NavigationButtonContent(title: "Favorites")
+                            NavigationButtonContent(title: "Favorites", font: buttonFont)
                         }
                         
                         NavigationLink(destination: HiddenDestinationView()) {
-                            NavigationButtonContent(title: "Hidden")
+                            NavigationButtonContent(title: "Hidden", font: buttonFont)
                         }
                         
                         NavigationLink(destination: TutorialDestinationView()) {
-                            NavigationButtonContent(title: "Tutorial")
+                            NavigationButtonContent(title: "Tutorial", font: buttonFont)
                         }
                         
                         NavigationLink(destination: StoreDestinationView()) {
-                            NavigationButtonContent(title: "Store")
+                            NavigationButtonContent(title: "Store", font: buttonFont)
                         }
                     }
                     .padding(.horizontal, 50)
@@ -86,17 +89,11 @@ struct HomeView: View {
     }
 }
 
-// Destination view structs
-struct SessionsDestinationView: View {
-    var body: some View {
-        Text("Sessions View")
-            .navigationBarTitle("Sessions")
-    }
-}
-
+// We can keep these for now, but they'll be replaced as we build each screen
 struct FavoritesDestinationView: View {
     var body: some View {
         Text("Favorites View")
+            .font(.system(size: 24, weight: .light, design: .monospaced))
             .navigationBarTitle("Favorites")
     }
 }
@@ -104,6 +101,7 @@ struct FavoritesDestinationView: View {
 struct HiddenDestinationView: View {
     var body: some View {
         Text("Hidden View")
+            .font(.system(size: 24, weight: .light, design: .monospaced))
             .navigationBarTitle("Hidden")
     }
 }
@@ -111,6 +109,7 @@ struct HiddenDestinationView: View {
 struct TutorialDestinationView: View {
     var body: some View {
         Text("Tutorial View")
+            .font(.system(size: 24, weight: .light, design: .monospaced))
             .navigationBarTitle("Tutorial")
     }
 }
@@ -118,6 +117,7 @@ struct TutorialDestinationView: View {
 struct StoreDestinationView: View {
     var body: some View {
         Text("Store View")
+            .font(.system(size: 24, weight: .light, design: .monospaced))
             .navigationBarTitle("Store")
     }
 }
@@ -125,10 +125,11 @@ struct StoreDestinationView: View {
 // Button content for navigation links
 struct NavigationButtonContent: View {
     let title: String
+    let font: Font
     
     var body: some View {
         Text(title)
-            .font(.system(size: 28, weight: .regular, design: .default))
+            .font(font)
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 18)
