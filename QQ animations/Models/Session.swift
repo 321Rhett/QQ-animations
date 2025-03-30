@@ -1,6 +1,6 @@
 import Foundation
 
-struct Session: Identifiable {
+struct Session: Identifiable, Equatable {
     let id: Int
     let name: String
     let creationDate: Date
@@ -10,5 +10,10 @@ struct Session: Identifiable {
         self.id = id
         self.name = name
         self.creationDate = creationDate
+    }
+    
+    // Implement Equatable
+    static func == (lhs: Session, rhs: Session) -> Bool {
+        return lhs.id == rhs.id
     }
 } 

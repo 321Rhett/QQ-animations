@@ -32,11 +32,7 @@
 /* Begin PBXFileReference section */
 		403A1E192D98498A00936FF3 /* master_questions.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = master_questions.db; sourceTree = "<group>"; };
 		403A1E1B2D9849BB00936FF3 /* user_data.db */ = {isa = PBXFileReference; lastKnownFileType = file; path = user_data.db; sourceTree = "<group>"; };
-		403A1E1D2D984F5300936FF3 /* Question.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Question.swift; sourceTree = "<group>"; };
-		403A1E202D98500200936FF3 /* UserPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreference.swift; sourceTree = "<group>"; };
-		403A1E222D98530700936FF3 /* DatabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseManager.swift; sourceTree = "<group>"; };
 		403A1E262D9853AD00936FF3 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
-		403A1E282D98544900936FF3 /* QuestionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionViewModel.swift; sourceTree = "<group>"; };
 		40C6517C2D96CEF6007E6872 /* QQ animations.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "QQ animations.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		40C6518C2D96CEF8007E6872 /* QQ animationsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "QQ animationsTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		40C651962D96CEF8007E6872 /* QQ animationsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "QQ animationsUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -103,23 +99,6 @@
 			path = Databases;
 			sourceTree = "<group>";
 		};
-		403A1E1E2D984F5300936FF3 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				403A1E202D98500200936FF3 /* UserPreference.swift */,
-				403A1E1D2D984F5300936FF3 /* Question.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		403A1E232D98530700936FF3 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				403A1E222D98530700936FF3 /* DatabaseManager.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
 		403A1E252D9853AC00936FF3 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -128,20 +107,9 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		403A1E292D98544900936FF3 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				403A1E282D98544900936FF3 /* QuestionViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
 		40C651732D96CEF6007E6872 = {
 			isa = PBXGroup;
 			children = (
-				403A1E292D98544900936FF3 /* ViewModels */,
-				403A1E232D98530700936FF3 /* Services */,
-				403A1E1E2D984F5300936FF3 /* Models */,
 				403A1E172D9848E500936FF3 /* Resources */,
 				40C6517E2D96CEF6007E6872 /* QQ animations */,
 				40C6518F2D96CEF8007E6872 /* QQ animationsTests */,

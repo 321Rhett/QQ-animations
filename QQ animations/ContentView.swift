@@ -88,6 +88,9 @@ struct ActionSymbol: View {
 }
 
 struct ContentView: View {
+    // Session for this content view
+    var session: Session?
+    
     // ViewModel for database access
     @StateObject private var viewModel = QuestionViewModel()
     
@@ -376,7 +379,9 @@ struct ContentView: View {
         )
     }
     
-    init() {
+    init(session: Session?) {
+        self.session = session
+        
         // This is not needed in SwiftUI but included for clarity
         // State and StateObject are automatically initialized
         
@@ -790,7 +795,7 @@ struct ContentView: View {
 // More explicit preview provider for better compatibility
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ContentView(session: nil)
             .previewDevice(PreviewDevice(rawValue: "iPhone 15"))
             .previewDisplayName("iPhone 15")
     }
@@ -799,6 +804,6 @@ struct ContentView_Previews: PreviewProvider {
 // Use the correct #Preview macro syntax
 #if DEBUG
 #Preview("QQ animations - iPhone 15") {
-    ContentView()
+    ContentView(session: nil)
 }
 #endif
