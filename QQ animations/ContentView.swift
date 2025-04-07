@@ -969,6 +969,7 @@ struct ContentView: View {
                         .frame(width: geometry.size.width, height: 4) // 4 pixels tall for extra safety
                         .position(x: geometry.size.width/2, y: bottomBarHeight) // Position at the junction
                         .zIndex(1) // High enough to cover any gap
+                        .allowsHitTesting(false) // Allow touches to pass through this visual-only element
                     
                     // Single unified VStack for both handle and content
                     VStack(spacing: 0) {
@@ -982,6 +983,98 @@ struct ContentView: View {
                                 .frame(height: bottomBarHeight * 0.8)
                                 .padding(.horizontal)
                         }
+                        .contentShape(Rectangle()) // Ensure entire handle is tappable
+                        .gesture(
+                            DragGesture(coordinateSpace: .global)
+                                .onChanged { value in
+                                    // Handle the case where the initial touch location is not yet set
+                                    if initialBottomDragLocation == 0 {
+                                        initialBottomDragLocation = value.startLocation.y
+                                        initialBottomHandlePosition = bottomOverlayOffset
+                                    }
+                                    
+                                    // Mark that we're transitioning the overlay
+                                    isOverlayTransitioning = true
+                                    
+                                    // Activate this overlay while dragging, but don't trigger keyboard
+                                    bottomOverlayActive = true
+                                    
+                                    // Ensure keyboard doesn't show during drag
+                                    if isNotesFocused {
+                                        isNotesFocused = false
+                                    }
+                                    
+                                    // Calculate new position using direct finger tracking in global coordinates
+                                    let dragDistance = initialBottomDragLocation - value.location.y
+                                    let newOffset = initialBottomHandlePosition + dragDistance
+                                    
+                                    // Calculate full slide distance to position precisely at top bar
+                                    let maxOffset = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
+                                    
+                                    // Constrain within bounds - direct 1:1 movement with finger
+                                    bottomOverlayOffset = min(maxOffset, max(0, newOffset))
+                                }
+                                .onEnded { value in
+                                    // Calculate full slide distance
+                                    let fullSlideDistance = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
+                                    
+                                    // Calculate how far we've moved from where we started the drag
+                                    let dragDistance = bottomOverlayOffset - initialBottomHandlePosition
+                                    
+                                    // Determine threshold for triggering state change
+                                    let threshold = fullSlideDistance / overlayTriggerThresholdFraction
+                                    
+                                    withAnimation(.quickTransition) {
+                                        if abs(dragDistance) > threshold {
+                                            // If we've moved more than the threshold, trigger state change
+                                            if dragDistance > 0 {
+                                                // Moved upward - deploy fully
+                                                bottomOverlayOffset = fullSlideDistance
+                                                bottomOverlayActive = true
+                                                
+                                                // Wait until animation completes before marking transition as done
+                                                // AND automatically focus the text field
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                    isOverlayTransitioning = false
+                                                    
+                                                    // Show keyboard after overlay is fully deployed
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                        if bottomOverlayActive && bottomOverlayOffset > 0 {
+                                                            isNotesFocused = true
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                // Moved downward - retract fully
+                                                bottomOverlayOffset = 0
+                                                bottomOverlayActive = false
+                                                
+                                                // Wait until animation completes before marking transition as done
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                    isOverlayTransitioning = false
+                                                }
+                                            }
+                                        } else {
+                                            // If we haven't moved far enough, go back to where we started
+                                            bottomOverlayOffset = initialBottomHandlePosition
+                                            bottomOverlayActive = initialBottomHandlePosition > 0
+                                            
+                                            // Wait until animation completes before marking transition as done
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                isOverlayTransitioning = false
+                                                
+                                                // If we're returning to the deployed state, restore keyboard focus
+                                                if initialBottomHandlePosition > 0 && bottomOverlayActive && bottomOverlayOffset > 0 {
+                                                    isNotesFocused = true
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Reset the tracking variables for next drag
+                                    initialBottomDragLocation = 0
+                                }
+                        )
                         
                         // Content section
                         VStack(spacing: 0) {
@@ -1016,6 +1109,13 @@ struct ContentView: View {
                                         }
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: contentGeometry.size.height / 3)
+                                    // Add a onChange modifier to detect when drag starts and lose focus
+                                    .onChange(of: initialBottomDragLocation) { newValue in
+                                        if newValue != 0 {
+                                            // Drag has started, immediately lose focus
+                                            isNotesFocused = false
+                                        }
+                                    }
                                     
                                     // Fixed-height buttons area at the bottom
                                     VStack {
@@ -1024,6 +1124,7 @@ struct ContentView: View {
                                             // Cancel button
                                             Button(action: {
                                                 // Clear text, dismiss keyboard, close overlay
+                                                print("Cancel button tapped")
                                                 notesViewModel.clearNoteContent()
                                                 isNotesFocused = false
                                                 withAnimation(.quickTransition) {
@@ -1039,10 +1140,12 @@ struct ContentView: View {
                                                     .background(Color.gray.opacity(0.8))
                                                     .cornerRadius(12)
                                             }
+                                            .contentShape(Rectangle()) // Ensure button is tappable across its entire area
                                             
                                             // Save button
                                             Button(action: {
                                                 // Save note, dismiss keyboard, close overlay
+                                                print("Save button tapped")
                                                 notesViewModel.saveNote()
                                                 isNotesFocused = false
                                                 withAnimation(.quickTransition) {
@@ -1058,13 +1161,14 @@ struct ContentView: View {
                                                     .background(Color.blue)
                                                     .cornerRadius(12)
                                             }
+                                            .contentShape(Rectangle()) // Ensure button is tappable across its entire area
                                         }
                                         .padding(.horizontal)
                                         .padding(.bottom, 16)
+                                        .zIndex(2) // Ensure buttons have higher z-index
                                     }
                                     .frame(height: 80) // Fixed height for buttons area
                                     .background(Color.appBackground) // Make sure it has same background
-                                    .zIndex(1) // Keep buttons on top
                                 }
                             }
                         }
@@ -1078,107 +1182,6 @@ struct ContentView: View {
                                 .allowsHitTesting(false) // Let touches pass through
                         )
                     }
-                    
-                    // Visual bridge to ensure no gap appears during animation
-                    // This goes behind everything else but in front of other app content
-                    Rectangle()
-                        .fill(Color.appBackground)
-                        .frame(width: geometry.size.width, height: 2) // 2 pixels tall
-                        .position(x: geometry.size.width/2, y: bottomBarHeight - 1) // Position exactly at the junction
-                        .zIndex(0) // Keep behind content
-                    
-                    .contentShape(Rectangle()) // Ensure entire overlay is draggable
-                    .gesture(
-                        DragGesture(coordinateSpace: .global)
-                            .onChanged { value in
-                                // Mark that we're transitioning the overlay
-                                isOverlayTransitioning = true
-                                
-                                // Activate this overlay while dragging, but don't trigger keyboard
-                                bottomOverlayActive = true
-                                
-                                // Ensure keyboard doesn't show during drag
-                                if isNotesFocused {
-                                    isNotesFocused = false
-                                }
-                                
-                                // On first touch, record the initial touch location and handle position
-                                if initialBottomDragLocation == 0 {
-                                    initialBottomDragLocation = value.location.y
-                                    initialBottomHandlePosition = bottomOverlayOffset
-                                }
-                                
-                                // Calculate new position using direct finger tracking in global coordinates
-                                let dragDistance = initialBottomDragLocation - value.location.y
-                                let newOffset = initialBottomHandlePosition + dragDistance
-                                
-                                // Calculate full slide distance to position precisely at top bar
-                                let maxOffset = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
-                                
-                                // Constrain within bounds - direct 1:1 movement with finger
-                                bottomOverlayOffset = min(maxOffset, max(0, newOffset))
-                            }
-                            .onEnded { value in
-                                // Calculate full slide distance
-                                let fullSlideDistance = geometry.size.height - (safeAreaBottom + bottomBarHeight) - safeAreaTop
-                                
-                                // Calculate how far we've moved from where we started the drag
-                                let dragDistance = bottomOverlayOffset - initialBottomHandlePosition
-                                
-                                // Determine threshold for triggering state change
-                                let threshold = fullSlideDistance / overlayTriggerThresholdFraction
-                                
-                                withAnimation(.quickTransition) {
-                                    if abs(dragDistance) > threshold {
-                                        // If we've moved more than the threshold, trigger state change
-                                        if dragDistance > 0 {
-                                            // Moved upward - deploy fully
-                                            bottomOverlayOffset = fullSlideDistance
-                                            bottomOverlayActive = true
-                                            
-                                            // Wait until animation completes before marking transition as done
-                                            // AND automatically focus the text field
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                isOverlayTransitioning = false
-                                                
-                                                // Show keyboard after overlay is fully deployed
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                                    if bottomOverlayActive && bottomOverlayOffset > 0 {
-                                                        isNotesFocused = true
-                                                    }
-                                                }
-                                            }
-                                        } else {
-                                            // Moved downward - retract fully
-                                            bottomOverlayOffset = 0
-                                            bottomOverlayActive = false
-                                            
-                                            // Wait until animation completes before marking transition as done
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                isOverlayTransitioning = false
-                                            }
-                                        }
-                                    } else {
-                                        // If we haven't moved far enough, go back to where we started
-                                        bottomOverlayOffset = initialBottomHandlePosition
-                                        bottomOverlayActive = initialBottomHandlePosition > 0
-                                        
-                                        // Wait until animation completes before marking transition as done
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            isOverlayTransitioning = false
-                                            
-                                            // If we're returning to the deployed state, restore keyboard focus
-                                            if initialBottomHandlePosition > 0 && bottomOverlayActive && bottomOverlayOffset > 0 {
-                                                isNotesFocused = true
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Reset the tracking variables for next drag
-                                initialBottomDragLocation = 0
-                            }
-                    )
                 }
                 .offset(y: geometry.size.height - bottomBarHeight - safeAreaBottom - bottomOverlayOffset)
                 .zIndex(bottomOverlayActive ? 2 : 1)
