@@ -311,12 +311,46 @@ struct ActionSymbol: View {
     }
 }
 
-struct ContentView: View {
-    // Session for this content view
-    var session: Session?
+// Add this extension near the top of the file with the other extensions
+extension UITextView {
+    open override var backgroundColor: UIColor? {
+        get { return .clear }
+        set { }
+    }
+}
+
+// Add this further down where our other view extensions are
+struct CustomTextEditorStyle: ViewModifier {
+    var backgroundColor: Color
+    var textColor: Color
     
-    // ViewModel for database access
+    func body(content: Content) -> some View {
+        content
+            .foregroundColor(textColor)
+            .padding()
+            .background(backgroundColor)
+            .onAppear {
+                // This more aggressive approach changes the appearance for all TextViews
+                UITextView.appearance().backgroundColor = UIColor(backgroundColor)
+                UITextView.appearance().textColor = UIColor(textColor)
+            }
+    }
+}
+
+extension View {
+    func customTextEditorStyle(backgroundColor: Color, textColor: Color) -> some View {
+        self.modifier(CustomTextEditorStyle(backgroundColor: backgroundColor, textColor: textColor))
+    }
+}
+
+struct ContentView: View {
     @StateObject private var viewModel = QuestionViewModel()
+    @StateObject private var notesViewModel: NotesViewModel
+    let session: Session?
+    
+    // Add missing state variables
+    @State private var isQuestionVisible = false
+    @FocusState private var isNotesFocused: Bool
     
     // States for the overlay positions
     @State private var topOverlayOffset: CGFloat = 0
@@ -603,14 +637,18 @@ struct ContentView: View {
         )
     }
     
+    // Add state for keyboard height near other state variables
+    @State private var keyboardHeight: CGFloat = 0
+    
+    // Add a new state to track whether the overlay is in transition
+    @State private var isOverlayTransitioning: Bool = false
+    
     init(session: Session?) {
         self.session = session
-        
-        // This is not needed in SwiftUI but included for clarity
-        // State and StateObject are automatically initialized
-        
-        // Note: We'll keep ContentView's state for animations
-        // But these will be synced with the ViewModel through our toggle functions
+        _notesViewModel = StateObject(wrappedValue: NotesViewModel(
+            sessionId: session?.id ?? -1,
+            questionId: -1  // We'll update this when a question is loaded
+        ))
     }
     
     var body: some View {
@@ -806,7 +844,7 @@ struct ContentView: View {
                             .opacity(cardOpacity)
                         
                         // Card content
-                        Text(viewModel.currentQuestion?.questionText ?? "No question available")
+                        Text(viewModel.questionDisplayText)
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.center)
@@ -923,25 +961,146 @@ struct ContentView: View {
                 
                 // MARK: - Bottom Overlay
                 
-                // Bottom Overlay with handle and body
-                VStack(spacing: 0) {
-                    // Bottom overlay handle - draggable
-                    ZStack {
-                        Rectangle()
-                            .fill(Color.appBackground)
-                            .frame(height: bottomBarHeight)
+                // Bottom overlay
+                ZStack(alignment: .top) {
+                    // Visual bridge to ensure no gap appears during animation
+                    Rectangle()
+                        .fill(Color.appBackground)
+                        .frame(width: geometry.size.width, height: 4) // 4 pixels tall for extra safety
+                        .position(x: geometry.size.width/2, y: bottomBarHeight) // Position at the junction
+                        .zIndex(1) // High enough to cover any gap
+                    
+                    // Single unified VStack for both handle and content
+                    VStack(spacing: 0) {
+                        // Handle for bottom overlay
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.appBackground)
+                                .frame(height: bottomBarHeight)
+                            
+                            FilagreeView(color: isFavorite ? .favoriteHandle : (isHidden ? .hiddenHandle : .filagree), isFlipped: true)
+                                .frame(height: bottomBarHeight * 0.8)
+                                .padding(.horizontal)
+                        }
                         
-                        // Add filagree to handle, flipped vertically
-                        FilagreeView(color: isFavorite ? .favoriteHandle : (isHidden ? .hiddenHandle : .filagree), isFlipped: true)
-                            .frame(height: bottomBarHeight * 0.8)
-                            .padding(.horizontal)
+                        // Content section
+                        VStack(spacing: 0) {
+                            // Character count - centered
+                            Text("\(notesViewModel.remainingCharacters) characters remaining")
+                                .foregroundColor(.gray)
+                                .font(.system(size: 14, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, 16)
+                                .padding(.bottom, 8)
+                            
+                            // Main content area: TextEditor and Buttons
+                            GeometryReader { contentGeometry in
+                                VStack(spacing: 0) {
+                                    TextEditor(text: Binding(
+                                        get: { notesViewModel.noteContent },
+                                        set: { notesViewModel.updateNoteContent($0) }
+                                    ))
+                                    .font(.system(size: 16, design: .monospaced))
+                                    .multilineTextAlignment(.center)
+                                    .focused($isNotesFocused)
+                                    .customTextEditorStyle(backgroundColor: Color.gray.opacity(0.5), textColor: .white)
+                                    .submitLabel(.done)
+                                    .onSubmit {
+                                        // Save note when Done key is pressed
+                                        notesViewModel.saveNote()
+                                        // Dismiss keyboard and close overlay
+                                        isNotesFocused = false
+                                        withAnimation(.quickTransition) {
+                                            bottomOverlayOffset = 0
+                                            bottomOverlayActive = false
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: contentGeometry.size.height / 3)
+                                    
+                                    // Fixed-height buttons area at the bottom
+                                    VStack {
+                                        // Buttons container
+                                        HStack(spacing: 16) {
+                                            // Cancel button
+                                            Button(action: {
+                                                // Clear text, dismiss keyboard, close overlay
+                                                notesViewModel.clearNoteContent()
+                                                isNotesFocused = false
+                                                withAnimation(.quickTransition) {
+                                                    bottomOverlayOffset = 0
+                                                    bottomOverlayActive = false
+                                                }
+                                            }) {
+                                                Text("Cancel")
+                                                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                                    .foregroundColor(.white)
+                                                    .frame(maxWidth: .infinity)
+                                                    .padding()
+                                                    .background(Color.gray.opacity(0.8))
+                                                    .cornerRadius(12)
+                                            }
+                                            
+                                            // Save button
+                                            Button(action: {
+                                                // Save note, dismiss keyboard, close overlay
+                                                notesViewModel.saveNote()
+                                                isNotesFocused = false
+                                                withAnimation(.quickTransition) {
+                                                    bottomOverlayOffset = 0
+                                                    bottomOverlayActive = false
+                                                }
+                                            }) {
+                                                Text("Save")
+                                                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                                                    .foregroundColor(.white)
+                                                    .frame(maxWidth: .infinity)
+                                                    .padding()
+                                                    .background(Color.blue)
+                                                    .cornerRadius(12)
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                        .padding(.bottom, 16)
+                                    }
+                                    .frame(height: 80) // Fixed height for buttons area
+                                    .background(Color.appBackground) // Make sure it has same background
+                                    .zIndex(1) // Keep buttons on top
+                                }
+                            }
+                        }
+                        .frame(height: geometry.size.height - bottomBarHeight)
+                        .background(Color.appBackground)
+                        // Content cover - hides content when docked, fades as overlay is pulled up
+                        .overlay(
+                            Rectangle()
+                                .fill(Color.appBackground)
+                                .opacity(1.0 - min(1.0, (bottomOverlayOffset / (geometry.size.height * 0.3))))
+                                .allowsHitTesting(false) // Let touches pass through
+                        )
                     }
-                    .contentShape(Rectangle()) // Ensure entire handle is tappable
+                    
+                    // Visual bridge to ensure no gap appears during animation
+                    // This goes behind everything else but in front of other app content
+                    Rectangle()
+                        .fill(Color.appBackground)
+                        .frame(width: geometry.size.width, height: 2) // 2 pixels tall
+                        .position(x: geometry.size.width/2, y: bottomBarHeight - 1) // Position exactly at the junction
+                        .zIndex(0) // Keep behind content
+                    
+                    .contentShape(Rectangle()) // Ensure entire overlay is draggable
                     .gesture(
                         DragGesture(coordinateSpace: .global)
                             .onChanged { value in
-                                // Activate this overlay while dragging
+                                // Mark that we're transitioning the overlay
+                                isOverlayTransitioning = true
+                                
+                                // Activate this overlay while dragging, but don't trigger keyboard
                                 bottomOverlayActive = true
+                                
+                                // Ensure keyboard doesn't show during drag
+                                if isNotesFocused {
+                                    isNotesFocused = false
+                                }
                                 
                                 // On first touch, record the initial touch location and handle position
                                 if initialBottomDragLocation == 0 {
@@ -976,15 +1135,43 @@ struct ContentView: View {
                                             // Moved upward - deploy fully
                                             bottomOverlayOffset = fullSlideDistance
                                             bottomOverlayActive = true
+                                            
+                                            // Wait until animation completes before marking transition as done
+                                            // AND automatically focus the text field
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                isOverlayTransitioning = false
+                                                
+                                                // Show keyboard after overlay is fully deployed
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                    if bottomOverlayActive && bottomOverlayOffset > 0 {
+                                                        isNotesFocused = true
+                                                    }
+                                                }
+                                            }
                                         } else {
                                             // Moved downward - retract fully
                                             bottomOverlayOffset = 0
                                             bottomOverlayActive = false
+                                            
+                                            // Wait until animation completes before marking transition as done
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                isOverlayTransitioning = false
+                                            }
                                         }
                                     } else {
                                         // If we haven't moved far enough, go back to where we started
                                         bottomOverlayOffset = initialBottomHandlePosition
                                         bottomOverlayActive = initialBottomHandlePosition > 0
+                                        
+                                        // Wait until animation completes before marking transition as done
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                            isOverlayTransitioning = false
+                                            
+                                            // If we're returning to the deployed state, restore keyboard focus
+                                            if initialBottomHandlePosition > 0 && bottomOverlayActive && bottomOverlayOffset > 0 {
+                                                isNotesFocused = true
+                                            }
+                                        }
                                     }
                                 }
                                 
@@ -992,17 +1179,34 @@ struct ContentView: View {
                                 initialBottomDragLocation = 0
                             }
                     )
-                    
-                    // Bottom overlay body
-                    Rectangle()
-                        .fill(Color.bottomOverlay)
-                        .frame(height: geometry.size.height - bottomBarHeight)
                 }
                 .offset(y: geometry.size.height - bottomBarHeight - safeAreaBottom - bottomOverlayOffset)
                 .zIndex(bottomOverlayActive ? 2 : 1)
+                .onChange(of: bottomOverlayActive) { isActive in
+                    // Clear focus if the overlay is being closed
+                    if !isActive {
+                        isNotesFocused = false
+                    }
+                    
+                    // We don't need additional logic here since we're handling focus in the drag gesture
+                }
                 .animation(.quickTransition, value: bottomOverlayOffset)
+                
+                // Extra listener to ensure keyboard hides when drag starts
+                .onChange(of: initialBottomDragLocation) { value in
+                    // If we're starting to drag down from deployed position, hide keyboard immediately
+                    if value != 0 && bottomOverlayOffset > 0 {
+                        // Just hide the keyboard during the drag - focus state will be restored if needed in the drag's onEnded
+                        isNotesFocused = false
+                    }
+                }
             }
-            // Watch for changes in the ViewModel
+            // Add keyboard observers when the view appears
+            .onAppear {
+                setupKeyboardObservers()
+                loadNewQuestion() // Load initial question
+            }
+            .onDisappear(perform: removeKeyboardObservers)
             .onReceive(viewModel.$questionPreference.map { $0?.isFavorite ?? false }) { newValue in
                 // Update the ContentView state to match
                 isFavorite = newValue
@@ -1019,9 +1223,41 @@ struct ContentView: View {
         )
         .ignoresSafeArea()
     }
+    
+    // Simplify keyboard observers since we're not using dynamic padding anymore
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { _ in
+            // Just track keyboard visibility state
+            withAnimation(.quickTransition) {
+                keyboardHeight = 1 // Just set to 1 as a flag that keyboard is visible
+            }
+        }
+        
+        NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+            // Reset keyboard visibility state
+            withAnimation(.quickTransition) {
+                keyboardHeight = 0
+            }
+        }
+    }
+
+    private func removeKeyboardObservers() {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+    
+    private func loadNewQuestion() {
+        viewModel.fetchRandomQuestion()
+        if let question = viewModel.currentQuestion {
+            notesViewModel.updateQuestion(sessionId: session?.id ?? -1, questionId: question.id)
+            withAnimation(.quickTransition) {
+                isQuestionVisible = true
+            }
+        }
+    }
 }
 
-// More explicit preview provider for better compatibility
+// Update preview
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView(session: nil)
@@ -1030,7 +1266,6 @@ struct ContentView_Previews: PreviewProvider {
     }
 }
 
-// Use the correct #Preview macro syntax
 #if DEBUG
 #Preview("QQ animations - iPhone 15") {
     ContentView(session: nil)
