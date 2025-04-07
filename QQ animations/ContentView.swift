@@ -153,8 +153,18 @@ struct TwoFingerSwipeToDismissModifier: ViewModifier {
             )
             
             // Add the gesture recognizer to the window
-            if let window = UIApplication.shared.windows.first {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = windowScene.windows.first {
                 window.addGestureRecognizer(gestureRecognizer)
+            }
+        }
+    }
+    
+    private func performDismiss() {
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            if let navigationController = window.rootViewController as? UINavigationController {
+                navigationController.popViewController(animated: true)
             }
         }
     }
