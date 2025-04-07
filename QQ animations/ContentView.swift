@@ -42,6 +42,220 @@ extension Image {
     }
 }
 
+// Reusable two-finger swipe to dismiss gesture modifier
+struct TwoFingerSwipeToDismissModifier: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    @State private var offset: CGFloat = 0
+    @State private var isDismissing = false
+    @State private var didProvideFeedback = false
+    @State private var showDismissIndicator = false
+    
+    // Configuration
+    let dismissThreshold: CGFloat
+    let feedbackThreshold: CGFloat
+    
+    init(dismissThreshold: CGFloat = 100, feedbackThreshold: CGFloat = 50) {
+        self.dismissThreshold = dismissThreshold
+        self.feedbackThreshold = feedbackThreshold
+    }
+    
+    // Calculate the progress towards dismissal (0.0 - 1.0)
+    private func dismissProgress() -> CGFloat {
+        let progress = min(1.0, abs(offset) / dismissThreshold)
+        return progress
+    }
+    
+    func body(content: Content) -> some View {
+        ZStack {
+            content
+                .offset(x: offset)
+                .opacity(1.0 - dismissProgress() * 0.3)
+            
+            // Dismiss indicator
+            VStack {
+                Spacer()
+                
+                if showDismissIndicator {
+                    Text("Release to go back")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.6))
+                        )
+                        .transition(.opacity)
+                        .opacity(dismissProgress())
+                }
+                
+                Spacer().frame(height: 40)
+            }
+        }
+        .background(Color.appBackground) // Match the app's background color
+        .onAppear {
+            // Create and configure the gesture recognizer
+            let gestureRecognizer = TwoFingerSwipeGestureRecognizer(
+                onChanged: { translation in
+                    if !isDismissing {
+                        offset = translation.x
+                        
+                        // Show dismiss indicator when approaching threshold
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showDismissIndicator = offset > feedbackThreshold
+                        }
+                        
+                        // Provide haptic feedback when crossing the feedback threshold
+                        if offset > feedbackThreshold && !didProvideFeedback {
+                            didProvideFeedback = true
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                        } else if offset < feedbackThreshold && didProvideFeedback {
+                            // Reset feedback flag when going back below threshold
+                            didProvideFeedback = false
+                        }
+                    }
+                },
+                onEnded: { translation in
+                    if offset > dismissThreshold && !isDismissing {
+                        // If swiped beyond threshold, dismiss
+                        isDismissing = true
+                        
+                        // Provide success haptic feedback
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                        
+                        // Animate the dismissal with a proper navigation transition
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            offset = UIScreen.main.bounds.width
+                            showDismissIndicator = false
+                        }
+                        
+                        // Slight delay before actual dismissal to let animation complete
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            dismiss()
+                        }
+                    } else {
+                        // Reset feedback flag
+                        didProvideFeedback = false
+                        
+                        // Hide dismiss indicator
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showDismissIndicator = false
+                        }
+                        
+                        // Otherwise, bounce back with a spring animation
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            offset = 0
+                        }
+                    }
+                }
+            )
+            
+            // Add the gesture recognizer to the window
+            if let window = UIApplication.shared.windows.first {
+                window.addGestureRecognizer(gestureRecognizer)
+            }
+        }
+    }
+}
+
+// Custom gesture recognizer for two-finger swipes
+class TwoFingerSwipeGestureRecognizer: UIGestureRecognizer {
+    private var onChanged: (CGPoint) -> Void
+    private var onEnded: (CGPoint) -> Void
+    private var initialTouchLocations: [CGPoint] = []
+    private var currentTouchLocations: [CGPoint] = []
+    
+    init(onChanged: @escaping (CGPoint) -> Void, onEnded: @escaping (CGPoint) -> Void) {
+        self.onChanged = onChanged
+        self.onEnded = onEnded
+        super.init(target: nil, action: nil)
+        self.cancelsTouchesInView = false
+        self.delaysTouchesBegan = false
+        self.delaysTouchesEnded = false
+    }
+    
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesBegan(touches, with: event)
+        
+        // Only proceed if we have exactly two touches
+        if touches.count == 2 {
+            initialTouchLocations = touches.map { $0.location(in: nil) }
+            currentTouchLocations = initialTouchLocations
+            state = .began
+        }
+    }
+    
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesMoved(touches, with: event)
+        
+        // Only proceed if we have exactly two touches
+        if touches.count == 2 {
+            currentTouchLocations = touches.map { $0.location(in: nil) }
+            
+            // Calculate the average translation
+            let initialCenter = CGPoint(
+                x: (initialTouchLocations[0].x + initialTouchLocations[1].x) / 2,
+                y: (initialTouchLocations[0].y + initialTouchLocations[1].y) / 2
+            )
+            let currentCenter = CGPoint(
+                x: (currentTouchLocations[0].x + currentTouchLocations[1].x) / 2,
+                y: (currentTouchLocations[0].y + currentTouchLocations[1].y) / 2
+            )
+            
+            let translation = CGPoint(
+                x: currentCenter.x - initialCenter.x,
+                y: currentCenter.y - initialCenter.y
+            )
+            
+            onChanged(translation)
+            state = .changed
+        }
+    }
+    
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesEnded(touches, with: event)
+        
+        if touches.count == 2 {
+            let finalCenter = CGPoint(
+                x: (currentTouchLocations[0].x + currentTouchLocations[1].x) / 2,
+                y: (currentTouchLocations[0].y + currentTouchLocations[1].y) / 2
+            )
+            let initialCenter = CGPoint(
+                x: (initialTouchLocations[0].x + initialTouchLocations[1].x) / 2,
+                y: (initialTouchLocations[0].y + initialTouchLocations[1].y) / 2
+            )
+            
+            let translation = CGPoint(
+                x: finalCenter.x - initialCenter.x,
+                y: finalCenter.y - initialCenter.y
+            )
+            
+            onEnded(translation)
+            state = .ended
+        }
+    }
+    
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesCancelled(touches, with: event)
+        state = .cancelled
+    }
+}
+
+// Extension to make the modifier easier to use
+extension View {
+    func twoFingerSwipeToDismiss(
+        dismissThreshold: CGFloat = 100,
+        feedbackThreshold: CGFloat = 50
+    ) -> some View {
+        self.modifier(TwoFingerSwipeToDismissModifier(
+            dismissThreshold: dismissThreshold,
+            feedbackThreshold: feedbackThreshold
+        ))
+    }
+}
+
 // Reusable filagree component
 struct FilagreeView: View {
     let color: Color
@@ -788,6 +1002,11 @@ struct ContentView: View {
                 isHidden = newValue
             }
         }
+        .navigationBarBackButtonHidden(true) // Hide the back button
+        .twoFingerSwipeToDismiss(
+            dismissThreshold: 100,  // Swipe 100 points to trigger dismissal
+            feedbackThreshold: 50   // Show feedback at 50 points
+        )
         .ignoresSafeArea()
     }
 }

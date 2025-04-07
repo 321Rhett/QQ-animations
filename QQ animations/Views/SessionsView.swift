@@ -272,6 +272,10 @@ struct SessionsView: View {
         }
         .navigationBarTitle("", displayMode: .inline)
         .navigationBarBackButtonHidden(false)
+        .twoFingerSwipeToDismiss(
+            dismissThreshold: 100,  // Swipe 100 points to trigger dismissal
+            feedbackThreshold: 50   // Show feedback at 50 points
+        )
         .onAppear {
             // Refresh sessions when view appears
             print("SessionsView appeared - refreshing sessions")
