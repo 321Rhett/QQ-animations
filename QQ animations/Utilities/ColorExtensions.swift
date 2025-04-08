@@ -20,6 +20,10 @@ extension Color {
     static let hiddenHandle = Color(red: 0.7, green: 0.0, blue: 0.0) // Dark red
     static let hiddenOverlay = Color(red: 0.8, green: 0.1, blue: 0.1) // Light red
     
+    // Filter UI colors
+    static let aqua = Color(red: 0, green: 0.8, blue: 0.8) // Aqua for inclusion highlight
+    static let excludeRed = Color(red: 0.7, green: 0.0, blue: 0.0) // Red for exclusion highlight
+    
     // Filagree colors
     static let filagree = Color(red: 0.6, green: 0.6, blue: 0.6) // Light grey (same as skip symbol)
     static let appBackground = Color(red: 0.12, green: 0.12, blue: 0.12) // Dark grey (almost black)

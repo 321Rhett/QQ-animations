@@ -77,7 +77,7 @@ struct TwoFingerSwipeToDismissModifier: ViewModifier {
                 
                 if showDismissIndicator {
                     Text("Release to go back")
-                        .font(.caption)
+                        .font(.system(size: 12, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -414,6 +414,25 @@ struct ContentView: View {
             return .favoriteHandle
         } else {
             return isTop ? .topHandle : .bottomHandle
+        }
+    }
+    
+    // Calculate extra padding needed for Dynamic Island or notch
+    var dynamicIslandPadding: CGFloat {
+        // Get top safe area inset
+        let topInset = UIApplication.safeAreaInsets.top
+        
+        // All models with notches or Dynamic Island have top insets greater than standard
+        // (iPhone 8 and earlier have top insets of 20pt, while notched phones have 44pt or greater)
+        if topInset >= 44 {
+            // Dynamic Island models have even larger insets (54+)
+            if topInset > 50 {
+                return 30 // Additional padding for Dynamic Island models
+            } else {
+                return 20 // Padding for notched models (X, XR, XS, 11, 12, 13)
+            }
+        } else {
+            return 0 // No extra padding for older non-notched models
         }
     }
     
@@ -845,7 +864,7 @@ struct ContentView: View {
                         
                         // Card content
                         Text(viewModel.questionDisplayText)
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.system(size: 24, weight: .bold, design: .monospaced))
                             .foregroundColor(.black)
                             .multilineTextAlignment(.center)
                             .padding()
@@ -884,8 +903,313 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // Top overlay body
                     Rectangle()
-                        .fill(Color.topOverlay)
+                        .fill(Color.appBackground)
                         .frame(height: geometry.size.height - topBarHeight)
+                        .overlay(
+                            ScrollView {
+                                VStack(spacing: 20) {
+                                    // Favorites button
+                                    Button(action: {
+                                        // Functionality will be added later
+                                    }) {
+                                        Text("Favorites")
+                                            .font(.system(size: 26, design: .monospaced))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 16)
+                                            .padding(.horizontal, 10)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(Color.favoriteSymbol)
+                                            )
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, safeAreaTop + 10 + dynamicIslandPadding)
+                                    
+                                    // Clear All button
+                                    Button(action: {
+                                        // Functionality will be added later
+                                    }) {
+                                        Text("Clear All")
+                                            .font(.system(size: 26, design: .monospaced))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 16)
+                                            .padding(.horizontal, 10)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .fill(Color.gray.opacity(0.3))
+                                            )
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 5)
+                                    
+                                    // Search bar
+                                    HStack {
+                                        Text("⌕")
+                                            .font(.system(size: 24, design: .monospaced))
+                                            .foregroundColor(.gray)
+                                        
+                                        TextField("search word/phrase", text: .constant(""))
+                                            .font(.system(size: 18, design: .monospaced))
+                                            .foregroundColor(.white)
+                                    }
+                                    .padding()
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(12)
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 5)
+                                    
+                                    // Tags label
+                                    Text("Tags")
+                                        .font(.system(size: 24, design: .monospaced))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.top, 5)
+                                    
+                                    // Tags grid
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                        // Left column
+                                        Button(action: {}) {
+                                            Text("Past")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        // Right column
+                                        Button(action: {}) {
+                                            Text("NSFW")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Present")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Secrets")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Future")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Beliefs")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Deep")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Emotional")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Ice Breaker")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Hypothetical")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Silly")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Skills")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Adventure")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Favorite X")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("Culture")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                        
+                                        Button(action: {}) {
+                                            Text("This or That")
+                                                .font(.system(size: 18, design: .monospaced))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 16)
+                                                .padding(.horizontal, 6)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                )
+                                        }
+                                    }
+                                    .padding(.horizontal, 24)
+                                    
+                                    // Packs section
+                                    Text("Packs")
+                                        .font(.system(size: 24, design: .monospaced))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .padding(.top, 20)
+                                    
+                                    // Packs grid
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                        ForEach(1...16, id: \.self) { index in
+                                            Button(action: {}) {
+                                                Text("core0\(index)")
+                                                    .font(.system(size: 18, design: .monospaced))
+                                                    .foregroundColor(.white)
+                                                    .frame(maxWidth: .infinity)
+                                                    .padding(.vertical, 16)
+                                                    .padding(.horizontal, 6)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 12)
+                                                            .fill(Color.gray.opacity(0.3))
+                                                    )
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 50)
+                                }
+                            }
+                        )
                     
                     // Top overlay handle - draggable
                     ZStack {
