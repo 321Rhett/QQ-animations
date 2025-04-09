@@ -568,41 +568,59 @@ struct ContentView: View {
     
     // Animate the card swipe completion
     func completeCardSwipe(direction: CGFloat) {
-        // DON'T fetch a new question yet - we'll do that after the card is off screen
+        isCardSwiped = true
         
-        withAnimation(.quickTransition) {
-            // Move card completely off screen
+        // Animate the card off screen
+        withAnimation(.easeOut(duration: AppTiming.medium)) {
             cardOffset = direction * UIScreen.main.bounds.width * 1.5
             cardOpacity = 0
             
-            // Move symbol to center and scale up (3x the original size)
-            symbolOffset = 0 // Move to exact center of screen
-            symbolOpacity = 1.0
-            symbolScale = 3.0 // Increased from 1.2 to 3.0
-            isCardSwiped = true
+            // Set symbol opacity to 0
+            symbolOpacity = 0
         }
         
-        // After a delay, fade out symbol and prepare for new card
-        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long) {
-            withAnimation(.quickTransition) {
-                symbolOpacity = 0
+        // After the card is off screen, reset and load a new card
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.medium) {
+            // Save the current preference state (favorite/hidden) before loading next
+            if let questionId = viewModel.currentQuestion?.id {
+                _ = DatabaseManager.shared.updateQuestionPreference(
+                    questionId: questionId,
+                    isFavorite: viewModel.isFavorite,
+                    isHidden: viewModel.isHidden
+                )
             }
             
-            // After symbol fades out, set up the new card
-            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.mediumDelay) {
-                // THIS is when we should fetch a new question - after the old card is gone
+            // Mark question as complete if swiped right
+            if direction > 0 {
+                viewModel.markCurrentQuestionCompleted()
+            } else {
+                viewModel.skipCurrentQuestion()
+            }
+            
+            withAnimation(.none) {
+                // Reset card position off screen in the opposite direction
+                cardOffset = -direction * UIScreen.main.bounds.width
+                
+                // Load a new question
                 viewModel.fetchRandomQuestion()
                 
-                // Reset position without animation while card is invisible
-                cardOffset = 0
+                // Reset action symbol states
                 isShowingSkipSymbol = false
                 isShowingCompleteSymbol = false
+                symbolOffset = 0
+                symbolOpacity = 0
+                symbolScale = 0.6
+            }
+            
+            // Animate the new card back into position
+            withAnimation(.easeOut(duration: AppTiming.medium)) {
+                cardOffset = 0
+                cardOpacity = 1
+            }
+            
+            // Reset card swiped flag after animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.medium) {
                 isCardSwiped = false
-                
-                // Now fade in the main card with the new content
-                withAnimation(.mediumTransition) {
-                    cardOpacity = 1.0
-                }
             }
         }
     }
@@ -668,6 +686,9 @@ struct ContentView: View {
             sessionId: session?.id ?? -1,
             questionId: -1  // We'll update this when a question is loaded
         ))
+        _viewModel = StateObject(wrappedValue: QuestionViewModel(
+            sessionId: session?.id ?? -1
+        ))
     }
     
     var body: some View {
@@ -693,190 +714,208 @@ struct ContentView: View {
                     }
                     .frame(height: safeAreaTop + topBarHeight)
                     
+                    // Progress counter - Positioned below the top bar
+                    Text(viewModel.progressText)
+                        .font(.system(size: 18, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.top, 10)
+                    
                     Spacer()
                     
                     // Card container
                     ZStack {
-                        // Create a gesture container that covers the entire card area
-                        Rectangle()
-                            .fill(Color.clear) // Make it transparent
-                            .frame(height: cardHeight)
-                            .padding(.horizontal)
-                            .contentShape(Rectangle()) // Ensure the entire area is tappable
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        // Only respond if not already swiped
-                                        if !isCardSwiped {
-                                            // Get distance of vertical/horizontal move
-                                            let verticalDistance = value.translation.height
-                                            let horizontalDistance = value.translation.width
-                                            
-                                            // Determine if this is primarily a vertical or horizontal swipe
-                                            if abs(verticalDistance) > abs(horizontalDistance) {
-                                                // Vertical swipe - we don't move the card vertically anymore
-                                                // Only respond if there isn't already a vertical swipe in progress
-                                                if !isVerticalSwipeInProgress {
-                                                    // If we were showing horizontal symbols, hide them when switching to vertical
-                                                    if isShowingSkipSymbol || isShowingCompleteSymbol {
-                                                        symbolOpacity = 0
-                                                        isShowingSkipSymbol = false
-                                                        isShowingCompleteSymbol = false
-                                                        // Reset horizontal offset too
-                                                        cardOffset = 0
-                                                    }
-                                                    
-                                                    // Handle up vs down swipe for symbols
-                                                    if verticalDistance < 0 {
-                                                        // Swiping up - show favorite symbol
-                                                        isShowingFavoriteSymbol = true
-                                                        isShowingHiddenSymbol = false
-                                                        
-                                                        // Update symbol from bottom handle's centermost edge
-                                                        let bottomHandleEdge = (geometry.size.height / 2) - bottomBarHeight - safeAreaBottom
-                                                        verticalSymbolOffset = bottomHandleEdge + verticalDistance/2
-                                                        
-                                                        // Calculate progress
-                                                        let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
-                                                        verticalSymbolOpacity = progressValues.opacity
-                                                        verticalSymbolScale = progressValues.scale
-                                                        
-                                                    } else if verticalDistance > 0 {
-                                                        // Swiping down - show hidden symbol
-                                                        isShowingHiddenSymbol = true
-                                                        isShowingFavoriteSymbol = false
-                                                        
-                                                        // Update symbol from top handle's centermost edge
-                                                        let bottomHandleEdge = (geometry.size.height / 2) - bottomBarHeight - safeAreaBottom
-                                                        verticalSymbolOffset = -bottomHandleEdge + verticalDistance/2
-                                                        
-                                                        // Calculate progress
-                                                        let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
-                                                        verticalSymbolOpacity = progressValues.opacity
-                                                        verticalSymbolScale = progressValues.scale
-                                                    }
-                                                }
-                                            } else {
-                                                // Horizontal swipe - update horizontal offset
-                                                cardOffset = horizontalDistance
+                        // --- Conditional Content Start ---
+                        if viewModel.currentQuestion?.id == 0 {
+                            // Display message when no questions match filters
+                            Text("No matches, please change filters")
+                                .font(.system(size: 20, design: .monospaced))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                        } else {
+                            // Display card and gestures only if there is a valid question
+                            
+                            // Create a gesture container that covers the entire card area
+                            Rectangle()
+                                .fill(Color.clear) // Make it transparent
+                                .frame(height: cardHeight)
+                                .padding(.horizontal)
+                                .contentShape(Rectangle()) // Ensure the entire area is tappable
+                                .gesture(
+                                    DragGesture()
+                                        .onChanged { value in
+                                            // Only respond if not already swiped
+                                            if !isCardSwiped {
+                                                // Get distance of vertical/horizontal move
+                                                let verticalDistance = value.translation.height
+                                                let horizontalDistance = value.translation.width
                                                 
-                                                // If we were showing vertical symbols, hide them when switching to horizontal
-                                                if isShowingFavoriteSymbol || isShowingHiddenSymbol {
-                                                    verticalSymbolOpacity = 0
-                                                    isShowingFavoriteSymbol = false
-                                                    isShowingHiddenSymbol = false
-                                                }
-                                                
-                                                // Determine which symbol to show based on swipe direction
-                                                if horizontalDistance > 0 {
-                                                    // Swiping right - show complete symbol
-                                                    isShowingCompleteSymbol = true
-                                                    isShowingSkipSymbol = false
-                                                    
-                                                    // Update symbol position and opacity
-                                                    symbolOffset = -geometry.size.width/2 + horizontalDistance/2
-                                                    
-                                                    // Calculate progress
-                                                    let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
-                                                    symbolOpacity = progressValues.opacity
-                                                    symbolScale = progressValues.scale
-                                                } else if horizontalDistance < 0 {
-                                                    // Swiping left - show skip symbol
-                                                    isShowingSkipSymbol = true
-                                                    isShowingCompleteSymbol = false
-                                                    
-                                                    // Update symbol position and opacity
-                                                    symbolOffset = geometry.size.width/2 + horizontalDistance/2
-                                                    
-                                                    // Calculate progress
-                                                    let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
-                                                    symbolOpacity = progressValues.opacity
-                                                    symbolScale = progressValues.scale
-                                                }
-                                            }
-                                        }
-                                    }
-                                    .onEnded { value in
-                                        if !isCardSwiped {
-                                            // Get distance of vertical/horizontal move
-                                            let verticalDistance = value.translation.height
-                                            let horizontalDistance = value.translation.width
-                                            
-                                            // Determine if this was primarily a vertical or horizontal swipe
-                                            if abs(verticalDistance) > abs(horizontalDistance) {
-                                                // Vertical swipe - check if threshold was reached
-                                                if abs(verticalDistance) > verticalSwipeThreshold && !isVerticalSwipeInProgress {
-                                                    // Set the flag to prevent multiple swipes
-                                                    isVerticalSwipeInProgress = true
-                                                    
-                                                    if verticalDistance < 0 {
-                                                        // Swiped up past threshold - toggle favorite
-                                                        // Mark both symbols as showing false to prevent reset conflicts
-                                                        isShowingHiddenSymbol = false
-                                                        isShowingFavoriteSymbol = true
-                                                        toggleFavorite()
-                                                    } else {
-                                                        // Swiped down past threshold - toggle hidden
-                                                        // Mark both symbols as showing false to prevent reset conflicts
-                                                        isShowingFavoriteSymbol = false
-                                                        isShowingHiddenSymbol = true
-                                                        toggleHidden()
-                                                    }
-                                                    
-                                                    // Reset the flag and symbol states after the animation completes
-                                                    DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long + AppTiming.mediumDelay) {
-                                                        isVerticalSwipeInProgress = false
+                                                // Determine if this is primarily a vertical or horizontal swipe
+                                                if abs(verticalDistance) > abs(horizontalDistance) {
+                                                    // Vertical swipe - we don't move the card vertically anymore
+                                                    // Only respond if there isn't already a vertical swipe in progress
+                                                    if !isVerticalSwipeInProgress {
+                                                        // If we were showing horizontal symbols, hide them when switching to vertical
+                                                        if isShowingSkipSymbol || isShowingCompleteSymbol {
+                                                            symbolOpacity = 0
+                                                            isShowingSkipSymbol = false
+                                                            isShowingCompleteSymbol = false
+                                                            // Reset horizontal offset too
+                                                            cardOffset = 0
+                                                        }
                                                         
-                                                        // Now it's safe to reset the symbol showing flags
-                                                        if !isVerticalSwipeInProgress {
-                                                            isShowingFavoriteSymbol = false
+                                                        // Handle up vs down swipe for symbols
+                                                        if verticalDistance < 0 {
+                                                            // Swiping up - show favorite symbol
+                                                            isShowingFavoriteSymbol = true
                                                             isShowingHiddenSymbol = false
+                                                            
+                                                            // Update symbol from bottom handle's centermost edge
+                                                            let bottomHandleEdge = (geometry.size.height / 2) - bottomBarHeight - safeAreaBottom
+                                                            verticalSymbolOffset = bottomHandleEdge + verticalDistance/2
+                                                            
+                                                            // Calculate progress
+                                                            let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
+                                                            verticalSymbolOpacity = progressValues.opacity
+                                                            verticalSymbolScale = progressValues.scale
+                                                            
+                                                        } else if verticalDistance > 0 {
+                                                            // Swiping down - show hidden symbol
+                                                            isShowingHiddenSymbol = true
+                                                            isShowingFavoriteSymbol = false
+                                                            
+                                                            // Update symbol from top handle's centermost edge
+                                                            let bottomHandleEdge = (geometry.size.height / 2) - bottomBarHeight - safeAreaBottom
+                                                            verticalSymbolOffset = -bottomHandleEdge + verticalDistance/2
+                                                            
+                                                            // Calculate progress
+                                                            let progressValues = calculateSwipeProgress(distance: verticalDistance, threshold: verticalSwipeThreshold)
+                                                            verticalSymbolOpacity = progressValues.opacity
+                                                            verticalSymbolScale = progressValues.scale
                                                         }
                                                     }
-                                                } else if !isVerticalSwipeInProgress {
-                                                    // Only reset if no swipe animation is in progress
-                                                    resetVerticalCardState()
-                                                }
-                                            } else {
-                                                // Horizontal swipe - check if threshold was reached
-                                                if abs(horizontalDistance) > horizontalSwipeThreshold {
-                                                    // If swiped past threshold, complete the swipe
-                                                    let direction: CGFloat = horizontalDistance > 0 ? 1 : -1
-                                                    completeCardSwipe(direction: direction)
                                                 } else {
-                                                    // Otherwise, reset card position
-                                                    resetCardState()
+                                                    // Horizontal swipe - update horizontal offset
+                                                    cardOffset = horizontalDistance
+                                                    
+                                                    // If we were showing vertical symbols, hide them when switching to horizontal
+                                                    if isShowingFavoriteSymbol || isShowingHiddenSymbol {
+                                                        verticalSymbolOpacity = 0
+                                                        isShowingFavoriteSymbol = false
+                                                        isShowingHiddenSymbol = false
+                                                    }
+                                                    
+                                                    // Determine which symbol to show based on swipe direction
+                                                    if horizontalDistance > 0 {
+                                                        // Swiping right - show complete symbol
+                                                        isShowingCompleteSymbol = true
+                                                        isShowingSkipSymbol = false
+                                                        
+                                                        // Update symbol position and opacity
+                                                        symbolOffset = -geometry.size.width/2 + horizontalDistance/2
+                                                        
+                                                        // Calculate progress
+                                                        let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
+                                                        symbolOpacity = progressValues.opacity
+                                                        symbolScale = progressValues.scale
+                                                    } else if horizontalDistance < 0 {
+                                                        // Swiping left - show skip symbol
+                                                        isShowingSkipSymbol = true
+                                                        isShowingCompleteSymbol = false
+                                                        
+                                                        // Update symbol position and opacity
+                                                        symbolOffset = geometry.size.width/2 + horizontalDistance/2
+                                                        
+                                                        // Calculate progress
+                                                        let progressValues = calculateSwipeProgress(distance: horizontalDistance, threshold: horizontalSwipeThreshold)
+                                                        symbolOpacity = progressValues.opacity
+                                                        symbolScale = progressValues.scale
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                            )
-                            .zIndex(2) // Ensure this is on top to capture all gestures
-                        
-                        // Current card
-                        Rectangle()
-                            .fill(Color.white.opacity(0.9))
-                            .frame(height: cardHeight)
-                            .cornerRadius(10)
-                            .padding(.horizontal)
-                            .offset(x: cardOffset, y: 0)
-                            .opacity(cardOpacity)
-                        
-                        // Card content
-                        Text(viewModel.questionDisplayText)
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundColor(.black)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                            .offset(x: cardOffset, y: 0)
-                            .opacity(cardOpacity)
-                            .allowsHitTesting(false) // Prevent text from intercepting touches
-                        
-                        // Action symbols
-                        skipSymbol
-                        completeSymbol
-                        favoriteSymbol
-                        hiddenSymbol
+                                        .onEnded { value in
+                                            if !isCardSwiped {
+                                                // Get distance of vertical/horizontal move
+                                                let verticalDistance = value.translation.height
+                                                let horizontalDistance = value.translation.width
+                                                
+                                                // Determine if this was primarily a vertical or horizontal swipe
+                                                if abs(verticalDistance) > abs(horizontalDistance) {
+                                                    // Vertical swipe - check if threshold was reached
+                                                    if abs(verticalDistance) > verticalSwipeThreshold && !isVerticalSwipeInProgress {
+                                                        // Set the flag to prevent multiple swipes
+                                                        isVerticalSwipeInProgress = true
+                                                        
+                                                        if verticalDistance < 0 {
+                                                            // Swiped up past threshold - toggle favorite
+                                                            // Mark both symbols as showing false to prevent reset conflicts
+                                                            isShowingHiddenSymbol = false
+                                                            isShowingFavoriteSymbol = true
+                                                            toggleFavorite()
+                                                        } else {
+                                                            // Swiped down past threshold - toggle hidden
+                                                            // Mark both symbols as showing false to prevent reset conflicts
+                                                            isShowingFavoriteSymbol = false
+                                                            isShowingHiddenSymbol = true
+                                                            toggleHidden()
+                                                        }
+                                                        
+                                                        // Reset the flag and symbol states after the animation completes
+                                                        DispatchQueue.main.asyncAfter(deadline: .now() + AppTiming.long + AppTiming.mediumDelay) {
+                                                            isVerticalSwipeInProgress = false
+                                                            
+                                                            // Now it's safe to reset the symbol showing flags
+                                                            if !isVerticalSwipeInProgress {
+                                                                isShowingFavoriteSymbol = false
+                                                                isShowingHiddenSymbol = false
+                                                            }
+                                                        }
+                                                    } else if !isVerticalSwipeInProgress {
+                                                        // Only reset if no swipe animation is in progress
+                                                        resetVerticalCardState()
+                                                    }
+                                                } else {
+                                                    // Horizontal swipe - check if threshold was reached
+                                                    if abs(horizontalDistance) > horizontalSwipeThreshold {
+                                                        // If swiped past threshold, complete the swipe
+                                                        let direction: CGFloat = horizontalDistance > 0 ? 1 : -1
+                                                        completeCardSwipe(direction: direction)
+                                                    } else {
+                                                        // Otherwise, reset card position
+                                                        resetCardState()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                )
+                                .zIndex(2) // Ensure this is on top to capture all gestures
+                            
+                            // Current card
+                            Rectangle()
+                                .fill(Color.white.opacity(0.9))
+                                .frame(height: cardHeight)
+                                .cornerRadius(10)
+                                .padding(.horizontal)
+                                .offset(x: cardOffset, y: 0)
+                                .opacity(cardOpacity)
+                            
+                            // Card content
+                            Text(viewModel.questionDisplayText)
+                                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                .foregroundColor(.black)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                                .offset(x: cardOffset, y: 0)
+                                .opacity(cardOpacity)
+                                .allowsHitTesting(false) // Prevent text from intercepting touches
+                            
+                            // Action symbols
+                            skipSymbol
+                            completeSymbol
+                            favoriteSymbol
+                            hiddenSymbol
+                        } // --- Conditional Content End ---
                     }
                     
                     Spacer()
@@ -910,7 +949,7 @@ struct ContentView: View {
                                 VStack(spacing: 20) {
                                     // Favorites button
                                     Button(action: {
-                                        // Functionality will be added later
+                                        viewModel.cycleFavoritesFilter()
                                     }) {
                                         Text("Favorites")
                                             .font(.system(size: 26, design: .monospaced))
@@ -921,6 +960,18 @@ struct ContentView: View {
                                             .background(
                                                 RoundedRectangle(cornerRadius: 12)
                                                     .fill(Color.favoriteSymbol)
+                                                    .overlay(
+                                                        // Add border based on filter state
+                                                        Group {
+                                                            if viewModel.favoritesFilterState == .include {
+                                                                RoundedRectangle(cornerRadius: 12)
+                                                                    .stroke(Color.aqua, lineWidth: 3)
+                                                            } else if viewModel.favoritesFilterState == .exclude {
+                                                                RoundedRectangle(cornerRadius: 12)
+                                                                    .stroke(Color.excludeRed, lineWidth: 3)
+                                                            }
+                                                        }
+                                                    )
                                             )
                                     }
                                     .padding(.horizontal, 24)
@@ -1217,12 +1268,14 @@ struct ContentView: View {
                             .fill(Color.appBackground)
                             .frame(height: topBarHeight)
                         
-                        // Add filagree to handle
+                        // Top handle always visible at top
                         FilagreeView(color: isFavorite ? .favoriteHandle : (isHidden ? .hiddenHandle : .filagree), isFlipped: false)
                             .frame(height: topBarHeight * 0.8)
                             .padding(.horizontal)
+                            .contentShape(Rectangle())
+                        
                     }
-                    .contentShape(Rectangle()) // Ensure entire handle is tappable
+                    .contentShape(Rectangle())
                     .gesture(
                         DragGesture(coordinateSpace: .global)
                             .onChanged { value in

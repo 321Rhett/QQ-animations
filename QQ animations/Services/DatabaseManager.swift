@@ -103,6 +103,72 @@ class DatabaseManager {
         }
         print("User database opened successfully")
         
+        // Create notes table if it doesn't exist
+        let createNotesTableSQL = """
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER,
+                question_id INTEGER,
+                content TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(session_id) REFERENCES sessions(id),
+                FOREIGN KEY(question_id) REFERENCES questions(id)
+            );
+        """
+        
+        var createTableStatement: OpaquePointer?
+        if sqlite3_prepare_v2(userDB, createNotesTableSQL, -1, &createTableStatement, nil) == SQLITE_OK {
+            if sqlite3_step(createTableStatement) == SQLITE_DONE {
+                print("Notes table created successfully")
+            } else {
+                print("Error creating notes table")
+            }
+        } else {
+            print("Error preparing create table statement")
+        }
+        sqlite3_finalize(createTableStatement)
+        
+        // Create session_progress table if it doesn't exist
+        let createSessionProgressTableSQL = """
+            CREATE TABLE IF NOT EXISTS session_progress (
+                session_id INTEGER,
+                question_id INTEGER,
+                completed_at TEXT DEFAULT NULL,
+                PRIMARY KEY (session_id, question_id)
+            );
+        """
+        
+        if sqlite3_prepare_v2(userDB, createSessionProgressTableSQL, -1, &createTableStatement, nil) == SQLITE_OK {
+            if sqlite3_step(createTableStatement) == SQLITE_DONE {
+                print("Session progress table created successfully")
+            } else {
+                print("Error creating session progress table")
+            }
+        } else {
+            print("Error preparing create session progress table statement")
+        }
+        sqlite3_finalize(createTableStatement)
+        
+        // Create user_preferences table if it doesn't exist
+        let createUserPreferencesTableSQL = """
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                question_id INTEGER PRIMARY KEY,
+                status TEXT CHECK(status IN ('favorite', 'hidden'))
+            );
+        """
+        if sqlite3_prepare_v2(userDB, createUserPreferencesTableSQL, -1, &createTableStatement, nil) == SQLITE_OK {
+            if sqlite3_step(createTableStatement) == SQLITE_DONE {
+                print("User preferences table created successfully")
+            } else {
+                let error = String(cString: sqlite3_errmsg(userDB))
+                print("Error creating user preferences table: \(error)")
+            }
+        } else {
+            let error = String(cString: sqlite3_errmsg(userDB))
+            print("Error preparing create user preferences table statement: \(error)")
+        }
+        sqlite3_finalize(createTableStatement)
+        
         isInitialized = true
     }
     
@@ -178,59 +244,83 @@ class DatabaseManager {
     // Function to update user preferences for a question
     func updateQuestionPreference(questionId: Int, isFavorite: Bool, isHidden: Bool) -> Bool {
         guard isInitialized, let db = userDB else {
-            print("Database not initialized")
+            print("DB Error: User DB not initialized in updateQuestionPreference")
             return false
         }
+        print("DB UpdatePref: Called for QID: \(questionId), isFav: \(isFavorite), isHidden: \(isHidden)")
         
         // First delete any existing preference
         let deleteQuery = "DELETE FROM user_preferences WHERE question_id = ?;"
         var statement: OpaquePointer?
+        var deleteSuccess = false
         
+        print("DB UpdatePref: Preparing delete query...")
         if sqlite3_prepare_v2(db, deleteQuery, -1, &statement, nil) != SQLITE_OK {
             let error = String(cString: sqlite3_errmsg(db))
-            print("Error preparing delete statement: \(error)")
+            print("DB Error: Failed preparing delete statement in updateQuestionPreference: \(error)")
             return false
         }
         
         sqlite3_bind_int(statement, 1, Int32(questionId))
         
-        if sqlite3_step(statement) != SQLITE_DONE {
+        print("DB UpdatePref: Executing delete query for QID: \(questionId)...")
+        if sqlite3_step(statement) == SQLITE_DONE {
+            print("DB UpdatePref: Delete successful or no existing row for QID: \(questionId).")
+            deleteSuccess = true
+        } else {
             let error = String(cString: sqlite3_errmsg(db))
-            print("Error deleting preferences: \(error)")
-            sqlite3_finalize(statement)
+            print("DB Error: Failed deleting preference in updateQuestionPreference: \(error)")
+        }
+        sqlite3_finalize(statement)
+        
+        // If deletion failed, we can't proceed reliably
+        guard deleteSuccess else {
+            print("DB Error: Aborting updateQuestionPreference due to delete failure.")
             return false
         }
         
-        sqlite3_finalize(statement)
-        
-        // If both are false, just return as we've already deleted any preference
+        // If both are false, the state is 'normal', so we're done (row deleted).
         if !isFavorite && !isHidden {
+            print("DB UpdatePref: Status is normal (both false), returning true after delete.")
             return true
         }
         
-        // Insert the new preference
-        // We'll prioritize favorite over hidden if both are true
+        // Determine the status string to insert.
+        // Prioritize favorite if somehow both flags were true.
         let status = isFavorite ? "favorite" : "hidden"
+        print("DB UpdatePref: Determined status to insert: '\(status)' for QID: \(questionId)")
+        
+        // Prepare the insert query
         let insertQuery = "INSERT INTO user_preferences (question_id, status) VALUES (?, ?);"
+        var insertStatement: OpaquePointer?
+        var insertSuccess = false
         
-        if sqlite3_prepare_v2(db, insertQuery, -1, &statement, nil) != SQLITE_OK {
+        print("DB UpdatePref: Preparing insert query...")
+        if sqlite3_prepare_v2(db, insertQuery, -1, &insertStatement, nil) != SQLITE_OK {
             let error = String(cString: sqlite3_errmsg(db))
-            print("Error preparing insert statement: \(error)")
+            print("DB Error: Failed preparing insert statement in updateQuestionPreference: \(error)")
             return false
         }
         
-        sqlite3_bind_int(statement, 1, Int32(questionId))
-        sqlite3_bind_text(statement, 2, status.cString(using: .utf8), -1, nil)
+        // Bind values
+        print("DB UpdatePref: Binding QID: \(questionId) and status: '\(status)'")
+        sqlite3_bind_int(insertStatement, 1, Int32(questionId))
+        sqlite3_bind_text(insertStatement, 2, status.cString(using: .utf8), -1, SQLITE_TRANSIENT) // Use status directly
         
-        if sqlite3_step(statement) != SQLITE_DONE {
+        // Execute insert
+        print("DB UpdatePref: Executing insert query...")
+        if sqlite3_step(insertStatement) == SQLITE_DONE {
+            print("DB UpdatePref: Insert successful for QID: \(questionId)")
+            insertSuccess = true
+        } else {
             let error = String(cString: sqlite3_errmsg(db))
-            print("Error inserting preference: \(error)")
-            sqlite3_finalize(statement)
-            return false
+            // Log the specific error, which might be the check constraint
+            print("DB Error: Failed inserting preference in updateQuestionPreference: \(error)")
         }
         
-        sqlite3_finalize(statement)
-        return true
+        sqlite3_finalize(insertStatement)
+        print("DB UpdatePref: Returning insert success: \(insertSuccess)")
+        return insertSuccess
     }
     
     // Function to get user preferences for a question
@@ -267,6 +357,97 @@ class DatabaseManager {
         sqlite3_finalize(statement)
         // Return default preferences if none found
         return UserPreference(questionId: questionId)
+    }
+    
+    // Function to get IDs of all hidden questions
+    func getHiddenQuestionIds() -> [Int] {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return []
+        }
+        
+        let query = "SELECT question_id FROM user_preferences WHERE status = 'hidden';"
+        var statement: OpaquePointer?
+        var hiddenIds: [Int] = []
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                hiddenIds.append(id)
+            }
+        }
+        sqlite3_finalize(statement)
+        return hiddenIds
+    }
+    
+    // Function to get the count of hidden questions
+    func getHiddenQuestionCount() -> Int {
+        guard isInitialized, let db = userDB else {
+            print("DB Error: User DB not initialized in getHiddenQuestionCount")
+            return 0
+        }
+        
+        let query = "SELECT COUNT(question_id) FROM user_preferences WHERE status = 'hidden';"
+        var statement: OpaquePointer?
+        var count: Int = 0
+        
+        print("DB Query: Executing getHiddenQuestionCount")
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            if sqlite3_step(statement) == SQLITE_ROW {
+                count = Int(sqlite3_column_int(statement, 0))
+                print("DB Success: getHiddenQuestionCount found count: \(count)")
+            } else {
+                // This case should ideally not happen for COUNT, but log if it does
+                print("DB Warning: getHiddenQuestionCount step did not return SQLITE_ROW")
+            }
+        } else {
+           let error = String(cString: sqlite3_errmsg(db))
+           print("DB Error: Failed preparing getHiddenQuestionCount query: \(error)")
+        }
+        sqlite3_finalize(statement)
+        print("DB Result: getHiddenQuestionCount returning \(count)")
+        return count
+    }
+    
+    // Function to get IDs of all favorite questions
+    func getFavoriteQuestionIds() -> [Int] {
+        guard isInitialized, let db = userDB else {
+            print("DB Error: User DB not initialized in getFavoriteQuestionIds")
+            return []
+        }
+        
+        let query = "SELECT question_id FROM user_preferences WHERE status = 'favorite';"
+        var statement: OpaquePointer?
+        var favoriteIds: [Int] = []
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                favoriteIds.append(id)
+            }
+        }
+        sqlite3_finalize(statement)
+        return favoriteIds
+    }
+    
+    // Function to get the count of favorite questions
+    func getFavoriteQuestionCount() -> Int {
+        guard isInitialized, let db = userDB else {
+            print("DB Error: User DB not initialized in getFavoriteQuestionCount")
+            return 0
+        }
+        
+        let query = "SELECT COUNT(question_id) FROM user_preferences WHERE status = 'favorite';"
+        var statement: OpaquePointer?
+        var count: Int = 0
+        
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            if sqlite3_step(statement) == SQLITE_ROW {
+                count = Int(sqlite3_column_int(statement, 0))
+            }
+        }
+        sqlite3_finalize(statement)
+        return count
     }
     
     // Function to ensure the sessions table exists in the user database
@@ -811,5 +992,246 @@ class DatabaseManager {
         
         sqlite3_finalize(statement)
         return false
+    }
+    
+    // MARK: - Notes Management
+    
+    func createNote(sessionId: Int, questionId: Int, content: String) -> Note? {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return nil
+        }
+        
+        let insertSQL = "INSERT INTO notes (session_id, question_id, content) VALUES (?, ?, ?);"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(sessionId))
+            sqlite3_bind_int(statement, 2, Int32(questionId))
+            sqlite3_bind_text(statement, 3, content, -1, SQLITE_TRANSIENT)
+            
+            if sqlite3_step(statement) == SQLITE_DONE {
+                let noteId = Int(sqlite3_last_insert_rowid(db))
+                sqlite3_finalize(statement)
+                return Note(id: noteId, sessionId: sessionId, questionId: questionId, content: content)
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return nil
+    }
+    
+    func getNote(sessionId: Int, questionId: Int) -> Note? {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return nil
+        }
+        
+        let querySQL = "SELECT id, content, created_at FROM notes WHERE session_id = ? AND question_id = ? ORDER BY created_at DESC LIMIT 1;"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, querySQL, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(sessionId))
+            sqlite3_bind_int(statement, 2, Int32(questionId))
+            
+            if sqlite3_step(statement) == SQLITE_ROW {
+                let id = sqlite3_column_int(statement, 0)
+                let contentCString = sqlite3_column_text(statement, 1)
+                let content = contentCString != nil ? String(cString: contentCString!) : ""
+                let createdAtString = String(cString: sqlite3_column_text(statement, 2))
+                let createdAt = DatabaseManager.dateFormatter.date(from: createdAtString) ?? Date()
+                
+                sqlite3_finalize(statement)
+                return Note(id: Int(id), sessionId: sessionId, questionId: questionId, content: content, createdAt: createdAt)
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return nil
+    }
+    
+    func updateNote(noteId: Int, content: String) -> Bool {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return false
+        }
+        
+        let updateSQL = "UPDATE notes SET content = ? WHERE id = ?;"
+        var statement: OpaquePointer?
+        
+        if sqlite3_prepare_v2(db, updateSQL, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_text(statement, 1, content, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_int(statement, 2, Int32(noteId))
+            
+            if sqlite3_step(statement) == SQLITE_DONE {
+                sqlite3_finalize(statement)
+                return true
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return false
+    }
+    
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
+    
+    // Function to get total question count from master database
+    func getQuestionCount() -> Int {
+        guard isInitialized, let db = masterDB else {
+            print("Database not initialized")
+            return 0
+        }
+        
+        let queryString = "SELECT COUNT(*) FROM questions;"
+        var statement: OpaquePointer?
+        var count: Int = 0
+        
+        if sqlite3_prepare_v2(db, queryString, -1, &statement, nil) == SQLITE_OK {
+            if sqlite3_step(statement) == SQLITE_ROW {
+                count = Int(sqlite3_column_int(statement, 0))
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return count
+    }
+    
+    // Function to get completed question count for a session
+    func getCompletedQuestionCount(sessionId: Int) -> Int {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return 0
+        }
+        
+        let queryString = """
+            SELECT COUNT(DISTINCT question_id) FROM session_progress 
+            WHERE session_id = ? AND completed_at IS NOT NULL AND question_id != 0;
+        """
+        var statement: OpaquePointer?
+        var count: Int = 0
+        
+        if sqlite3_prepare_v2(db, queryString, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(sessionId))
+            
+            if sqlite3_step(statement) == SQLITE_ROW {
+                count = Int(sqlite3_column_int(statement, 0))
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return count
+    }
+    
+    // Function to get completed question IDs for a session
+    func getCompletedQuestionIds(sessionId: Int) -> [Int] {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return []
+        }
+        
+        let queryString = """
+            SELECT question_id FROM session_progress 
+            WHERE session_id = ? AND completed_at IS NOT NULL AND question_id != 0;
+        """
+        var statement: OpaquePointer?
+        var ids: [Int] = []
+        
+        if sqlite3_prepare_v2(db, queryString, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(sessionId))
+            
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                ids.append(id)
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return ids
+    }
+    
+    // Function to mark a question as completed for a session
+    func markQuestionCompleted(sessionId: Int, questionId: Int) -> Bool {
+        guard isInitialized, let db = userDB else {
+            print("Database not initialized")
+            return false
+        }
+        
+        let queryString = """
+            INSERT OR REPLACE INTO session_progress (session_id, question_id, completed_at)
+            VALUES (?, ?, datetime('now', 'localtime'));
+        """
+        var statement: OpaquePointer?
+        var success = false
+        
+        if sqlite3_prepare_v2(db, queryString, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(sessionId))
+            sqlite3_bind_int(statement, 2, Int32(questionId))
+            
+            success = sqlite3_step(statement) == SQLITE_DONE
+        }
+        
+        sqlite3_finalize(statement)
+        return success
+    }
+    
+    // Function to get random question optionally filtering by potential IDs and excluding specific IDs
+    func getRandomQuestion(potentialIds: Set<Int>? = nil, excludeIds: Set<Int> = Set()) -> Question? {
+        guard isInitialized, let db = masterDB else {
+            print("DB Error: Master DB not initialized in getRandomQuestion")
+            return nil
+        }
+        
+        var queryString = "SELECT question_id, question_text, pack, version_added, tags FROM questions"
+        var conditions: [String] = []
+        
+        // Add condition for potential IDs if provided
+        if let potentialIds = potentialIds, !potentialIds.isEmpty {
+            let idsString = potentialIds.map { String($0) }.joined(separator: ",")
+            conditions.append("question_id IN (\(idsString))")
+        }
+        
+        // Add condition for excluded IDs
+        if !excludeIds.isEmpty {
+            let idsString = excludeIds.map { String($0) }.joined(separator: ",")
+            conditions.append("question_id NOT IN (\(idsString))")
+        }
+        
+        // Combine conditions with WHERE clause
+        if !conditions.isEmpty {
+            queryString += " WHERE " + conditions.joined(separator: " AND ")
+        }
+        
+        queryString += " ORDER BY RANDOM() LIMIT 1;"
+        print("DB Query: getRandomQuestion SQL: \(queryString)")
+
+        var statement: OpaquePointer?
+        var question: Question?
+        
+        if sqlite3_prepare_v2(db, queryString, -1, &statement, nil) == SQLITE_OK {
+            if sqlite3_step(statement) == SQLITE_ROW {
+                let id = sqlite3_column_int(statement, 0)
+                
+                let questionText = sqlite3_column_text(statement, 1)
+                let text = questionText != nil ? String(cString: questionText!) : "No question text"
+                
+                let packCString = sqlite3_column_text(statement, 2)
+                let pack = packCString != nil ? String(cString: packCString!) : "unknown"
+                
+                let versionAdded = sqlite3_column_text(statement, 3)
+                let version = versionAdded != nil ? String(cString: versionAdded!) : "0.0"
+                
+                let tagsCString = sqlite3_column_text(statement, 4)
+                let tags = tagsCString != nil ? String(cString: tagsCString!) : ""
+                
+                question = Question(id: Int(id), questionText: text, pack: pack, versionAdded: version, tags: tags)
+            }
+        }
+        
+        sqlite3_finalize(statement)
+        return question
     }
 } 
