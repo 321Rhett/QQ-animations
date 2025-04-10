@@ -1018,219 +1018,8 @@ struct ContentView: View {
                                         .frame(maxWidth: .infinity, alignment: .center)
                                         .padding(.top, 5)
                                     
-                                    // Tags grid
-                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                        // Left column
-                                        Button(action: {}) {
-                                            Text("Past")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        // Right column
-                                        Button(action: {}) {
-                                            Text("NSFW")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Present")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Secrets")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Future")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Beliefs")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Deep")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Emotional")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Ice Breaker")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Hypothetical")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Silly")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Skills")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Adventure")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Favorite X")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("Culture")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                        
-                                        Button(action: {}) {
-                                            Text("This or That")
-                                                .font(.system(size: 18, design: .monospaced))
-                                                .foregroundColor(.white)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 16)
-                                                .padding(.horizontal, 6)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 12)
-                                                        .fill(Color.gray.opacity(0.3))
-                                                )
-                                        }
-                                    }
-                                    .padding(.horizontal, 24)
+                                    // **** Use the computed property here ****
+                                    tagGrid
                                     
                                     // Packs section
                                     Text("Packs")
@@ -1602,6 +1391,431 @@ struct ContentView: View {
             feedbackThreshold: 50   // Show feedback at 50 points
         )
         .ignoresSafeArea()
+    }
+    
+    // **** Computed property for the tag grid view ****
+    private var tagGrid: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            // Left column
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Past")
+            }) {
+                Text("Past")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                // Add border based on filter state
+                                Group {
+                                    if viewModel.tagFilterStates["Past"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Past"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+            
+            // Right column
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "NSFW")
+            }) {
+                Text("NSFW")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["NSFW"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["NSFW"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Present")
+            }) {
+                Text("Present")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Present"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Present"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Secrets")
+            }) {
+                Text("Secrets")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Secrets"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Secrets"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Future")
+            }) {
+                Text("Future")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Future"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Future"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Beliefs")
+            }) {
+                Text("Beliefs")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Beliefs"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Beliefs"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Deep")
+            }) {
+                Text("Deep")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Deep"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Deep"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Emotional")
+            }) {
+                Text("Emotional")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Emotional"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Emotional"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Ice Breaker")
+            }) {
+                Text("Ice Breaker")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Ice Breaker"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Ice Breaker"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Hypothetical")
+            }) {
+                Text("Hypothetical")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Hypothetical"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Hypothetical"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Silly")
+            }) {
+                Text("Silly")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Silly"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Silly"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Skills")
+            }) {
+                Text("Skills")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Skills"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Skills"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Adventure")
+            }) {
+                Text("Adventure")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Adventure"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Adventure"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Favorite X")
+            }) {
+                Text("Favorite X")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Favorite X"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Favorite X"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "Culture")
+            }) {
+                Text("Culture")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["Culture"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["Culture"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+
+            Button(action: {
+                viewModel.cycleTagFilter(tag: "This or That")
+            }) {
+                Text("This or That")
+                    .font(.system(size: 18, design: .monospaced))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.gray.opacity(0.3))
+                            .overlay(
+                                Group {
+                                    if viewModel.tagFilterStates["This or That"] == .include {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.aqua, lineWidth: 3)
+                                    } else if viewModel.tagFilterStates["This or That"] == .exclude {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.excludeRed, lineWidth: 3)
+                                    }
+                                }
+                            )
+                    )
+            }
+        }
+        .padding(.horizontal, 24)
     }
     
     // Simplify keyboard observers since we're not using dynamic padding anymore

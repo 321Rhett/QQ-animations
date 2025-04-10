@@ -8,6 +8,7 @@ class QuestionViewModel: ObservableObject {
     @Published var totalQuestions: Int = 0
     @Published var completedCount: Int = 0
     @Published var favoritesFilterState: FilterState = .none
+    @Published var tagFilterStates: [String: FilterState] = [:]
     
     private var allQuestionsCount: Int = 0 // Store the absolute total count
     private var hiddenQuestionsCount: Int = 0
@@ -36,34 +37,46 @@ class QuestionViewModel: ObservableObject {
     
     init(sessionId: Int = -1) {
         self.sessionId = sessionId
+        // Initialize tag filter states before loading counts
+        initializeTagFilters()
         loadQuestionCounts()
+    }
+    
+    // Initialize tag filters dictionary
+    private func initializeTagFilters() {
+        let allTags = databaseManager.getAllTags()
+
+        // Try direct dictionary initialization from map
+        let initialStates = Dictionary(uniqueKeysWithValues: allTags.map { ($0, FilterState.none) })
+        
+        // Assign to the @Published property
+        self.tagFilterStates = initialStates 
+
+        // Check keys immediately after assignment
+
+        // Check again after a tiny delay - shouldn't be necessary in init, but for debugging
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        }
     }
     
     // Load initial question counts
     private func loadQuestionCounts() {
-        print("VM: Loading question counts for session \(sessionId)")
-        // Get the absolute total number of questions in the database
         allQuestionsCount = databaseManager.getQuestionCount()
-        print("VM: allQuestionsCount = \(allQuestionsCount)")
         hiddenQuestionsCount = databaseManager.getHiddenQuestionCount()
-        print("VM: hiddenQuestionsCount = \(hiddenQuestionsCount)")
         
         // Calculate the total *initially* available questions (total - hidden)
         // Filtered total will be calculated separately
         totalQuestions = allQuestionsCount - hiddenQuestionsCount
-        print("VM: Base totalQuestions (all - hidden) = \(totalQuestions)")
         
         // If we have a valid session, get completed questions
         if sessionId > 0 {
             // Fetch *all* completed IDs for this session first
             completedQuestions = databaseManager.getCompletedQuestionIds(sessionId: sessionId)
-            print("VM: Session \(sessionId): Total completed IDs fetched = \(completedQuestions.count)")
             // Recalculate the displayed completed count based on the *current* filter
             recalculateCompletedCountForFilter()
         } else {
             completedCount = 0
             completedQuestions = []
-            print("VM: No valid session (\(sessionId)), setting completed counts to 0.")
         }
         
         // Initial load for the current filter
@@ -83,49 +96,61 @@ class QuestionViewModel: ObservableObject {
             // Filter is active (include/exclude favorites)
             let completedMatchingFilter = Set(completedQuestions).intersection(potentialIds)
             completedCount = completedMatchingFilter.count
-            print("VM: Recalculated completedCount (Filtered: \(favoritesFilterState)): \(completedCount) (Intersection of \(completedQuestions.count) session completed and \(potentialIds.count) potential)")
         } else {
             // No specific filter, count all non-hidden completed
             let hiddenIds = Set(databaseManager.getHiddenQuestionIds())
             let completedNonHidden = Set(completedQuestions).subtracting(hiddenIds)
             completedCount = completedNonHidden.count
-            print("VM: Recalculated completedCount (No Filter): \(completedCount) (Session completed minus hidden)")
         }
         objectWillChange.send() // Ensure counter UI updates
     }
     
     // Helper to get the set of potential IDs based on the current filter state
     private func getPotentialIdsForCurrentFilter() -> Set<Int>? {
-        switch favoritesFilterState {
-        case .include:
-            return Set(databaseManager.getFavoriteQuestionIds())
-        case .exclude:
-            // Need all non-hidden IDs first
-            let allNonHiddenIds = Set(1...allQuestionsCount).subtracting(Set(databaseManager.getHiddenQuestionIds()))
-            let favoriteIds = Set(databaseManager.getFavoriteQuestionIds())
-            return allNonHiddenIds.subtracting(favoriteIds)
-        case .none:
-            return nil // Indicates no filtering based on favorites
-        }
-    }
-    
-    // Calculate the total count based on current filters
-    private func calculateFilteredTotal() -> Int {
-        // Start with total non-hidden questions
-        var currentTotal = allQuestionsCount - hiddenQuestionsCount
-        
+        // Start with all non-hidden IDs
+        let allNonHiddenIds = Set(1...allQuestionsCount).subtracting(Set(databaseManager.getHiddenQuestionIds()))
+        var currentPotentialIds = allNonHiddenIds
+
         // Apply favorites filter
         switch favoritesFilterState {
         case .include:
-            currentTotal = databaseManager.getFavoriteQuestionCount()
+            currentPotentialIds = currentPotentialIds.intersection(Set(databaseManager.getFavoriteQuestionIds()))
         case .exclude:
-            currentTotal -= databaseManager.getFavoriteQuestionCount()
+            currentPotentialIds = currentPotentialIds.subtracting(Set(databaseManager.getFavoriteQuestionIds()))
         case .none:
             break // No change needed
         }
         
+        // Apply tag filters
+        let includedTags = tagFilterStates.filter { $0.value == .include }.map { $0.key }
+        let excludedTags = tagFilterStates.filter { $0.value == .exclude }.map { $0.key }
+        
+        if !includedTags.isEmpty {
+            // Get IDs that have *at least one* of the included tags
+            let includedIds = Set(databaseManager.getQuestionIds(matchingTags: includedTags, condition: .any))
+            currentPotentialIds = currentPotentialIds.intersection(includedIds)
+        }
+        
+        if !excludedTags.isEmpty {
+            // Get IDs that have *any* of the excluded tags and subtract them
+            let excludedIds = Set(databaseManager.getQuestionIds(matchingTags: excludedTags, condition: .any))
+            currentPotentialIds = currentPotentialIds.subtracting(excludedIds)
+        }
+
+        // If no filters actively changed the set, return nil (meaning use all non-hidden)
+        // Otherwise, return the final filtered set.
+        // Correction: We should always return the calculated set unless it's identical to allNonHiddenIds AND no filters were active.
+        // Let's simplify: return the calculated set. If it's empty due to filters, getRandomQuestion handles it.
+        return currentPotentialIds
+    }
+    
+    // Calculate the total count based on current filters
+    private func calculateFilteredTotal() -> Int {
+        // Use the same logic as potential IDs to get the count
+        let potentialIds = getPotentialIdsForCurrentFilter()
+        let count = potentialIds?.count ?? (allQuestionsCount - hiddenQuestionsCount)
         // Make sure total isn't negative
-        return max(0, currentTotal)
+        return max(0, count)
     }
     
     // Cycle through filter states: none -> include -> exclude -> none
@@ -138,11 +163,33 @@ class QuestionViewModel: ObservableObject {
         case .exclude:
             favoritesFilterState = .none
         }
-        print("VM: Cycled favorites filter state to \(favoritesFilterState)")
         // Reload counts and question based on new filter
         recalculateCompletedCountForFilter() // Recalculate completed count for the new filter
         loadRandomQuestion()
         objectWillChange.send() // Ensure UI updates for progressText
+    }
+    
+    // Cycle through tag filter states
+    func cycleTagFilter(tag: String) {
+        guard let currentState = tagFilterStates[tag] else { // Use optional binding
+            return
+        }
+        
+        let nextState: FilterState
+        switch currentState {
+        case .none:
+            nextState = .include
+        case .include:
+            nextState = .exclude
+        case .exclude:
+            nextState = .none // Correctly cycle back to .none
+        }
+        tagFilterStates[tag] = nextState // Assign the calculated next state
+
+        // Reload counts and question based on new filter
+        recalculateCompletedCountForFilter()
+        loadRandomQuestion()
+        objectWillChange.send()
     }
     
     // Mark current question as completed
@@ -181,13 +228,11 @@ class QuestionViewModel: ObservableObject {
         // Get session completed IDs
         let sessionCompletedIds = sessionId > 0 ? completedQuestions : []
         // Combine universal and session exclusions
-        var excludeIds = Set(hiddenIds + sessionCompletedIds)
+        let excludeIds = Set(hiddenIds + sessionCompletedIds)
         
-        // Determine which set of IDs to *potentially* draw from based on favorite filter
+        // Determine which set of IDs to *potentially* draw from based on current filters
         let potentialIds = getPotentialIdsForCurrentFilter()
         
-        print("VM: Loading random question. Filter: \(favoritesFilterState). Exclude count: \(excludeIds.count). Potential count: \(potentialIds?.count ?? -1)")
-
         // Try to get a random question from the database
         if let question = self.databaseManager.getRandomQuestion(potentialIds: potentialIds, excludeIds: excludeIds) {
             self.currentQuestion = question
@@ -214,7 +259,7 @@ class QuestionViewModel: ObservableObject {
     
     // Toggle favorite status
     func toggleFavorite() {
-        guard let question = currentQuestion, var preference = questionPreference else {
+        guard let _ = currentQuestion, var preference = questionPreference else {
             return
         }
         
@@ -236,7 +281,7 @@ class QuestionViewModel: ObservableObject {
     
     // Toggle hidden status
     func toggleHidden() {
-        guard let question = currentQuestion, var preference = questionPreference else {
+        guard let _ = currentQuestion, var preference = questionPreference else {
             return
         }
         

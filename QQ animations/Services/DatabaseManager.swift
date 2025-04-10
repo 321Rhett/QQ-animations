@@ -450,6 +450,90 @@ class DatabaseManager {
         return count
     }
     
+    // Function to get all unique tags from the master database
+    func getAllTags() -> [String] {
+        guard isInitialized, let db = masterDB else {
+            return []
+        }
+        
+        let query = "SELECT DISTINCT tags FROM questions;"
+        var statement: OpaquePointer?
+        var allTags = Set<String>()
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                if let tagsCString = sqlite3_column_text(statement, 0) {
+                    let tagsString = String(cString: tagsCString)
+                    let tags = tagsString.split(separator: ",")
+                                       .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                       .filter { !$0.isEmpty }
+                    allTags.formUnion(tags)
+                }
+            }
+        } else {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("DB Error: Failed preparing getAllTags query: \(error)")
+        }
+        sqlite3_finalize(statement)
+        
+        let sortedTags = Array(allTags).sorted()
+        return sortedTags
+    }
+    
+    // Enum to specify tag matching condition
+    enum TagMatchCondition {
+        case any // Match if question has ANY of the specified tags
+        case all // Match if question has ALL of the specified tags (not currently used)
+    }
+
+    // Function to get question IDs based on tag matching
+    func getQuestionIds(matchingTags tags: [String], condition: TagMatchCondition) -> [Int] {
+        guard isInitialized, let db = masterDB, !tags.isEmpty else {
+            return []
+        }
+
+        var query = "SELECT question_id FROM questions WHERE "
+        var conditions: [String] = []
+
+        switch condition {
+        case .any:
+            // Build OR conditions: tags LIKE '%tag1%' OR tags LIKE '%tag2%' ...
+            for _ in tags {
+                conditions.append("tags LIKE '%' || ? || '%'" )
+            }
+            query += conditions.joined(separator: " OR ")
+        case .all:
+            // Build AND conditions: tags LIKE '%tag1%' AND tags LIKE '%tag2%' ...
+             for _ in tags {
+                conditions.append("tags LIKE '%' || ? || '%'" )
+            }
+            query += conditions.joined(separator: " AND ")
+        }
+
+        var statement: OpaquePointer?
+        var ids: [Int] = []
+        print("DB Query: getQuestionIds SQL: \(query) with tags: \(tags)")
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            // Bind each tag to its placeholder
+            for (index, tag) in tags.enumerated() {
+                 // Use SQLITE_TRANSIENT to ensure SQLite copies the string
+                sqlite3_bind_text(statement, Int32(index + 1), tag, -1, SQLITE_TRANSIENT)
+            }
+
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                ids.append(id)
+            }
+             print("DB Success: getQuestionIds found \(ids.count) matches.")
+        } else {
+            let error = String(cString: sqlite3_errmsg(db))
+            print("DB Error: Failed preparing getQuestionIds query: \(error)")
+        }
+        sqlite3_finalize(statement)
+        return ids
+    }
+    
     // Function to ensure the sessions table exists in the user database
     func initializeSessionsTable() -> Bool {
         guard isInitialized, let db = userDB else {
